@@ -33,6 +33,11 @@ export const S = {
             color: ${THEME.GREEN.FONT_COLOR} !important;
             background-color: ${THEME.GREEN.BACKGROUND_COLOR} !important;
         }
+
+        .selected-dom {
+            box-shadow: 0 0 0 2px #ff676775 !important;
+            border-radius: 2px;
+        }
     `,
     BoxContainer: styled.div`
         display: flex;
@@ -77,9 +82,5 @@ export const S = {
                 font-size: 35px;
             }
         }
-    `,
-    SelectedDom: styled.div`
-        box-shadow: 0 0 0 2px #ff676775 !important;
-        border-radius: 2px;
     `,
 };

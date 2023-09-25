@@ -20,6 +20,7 @@ export const S = {
             color: ${COLORS.SUB_COLOR};
             background-color: ${COLORS.MAIN_COLOR};
             border: none;
+            cursor: pointer;
 
             :focus {
                 outline: none;

@@ -81,7 +81,7 @@ const ScrapWindow = () => {
             )
                 return;
 
-            event.target.classList.add("selectedDom");
+            event.target.classList.add("selected-dom");
         };
 
         const highlightOnMouseout = (event) => {
@@ -92,7 +92,7 @@ const ScrapWindow = () => {
             )
                 return;
 
-            event.target.classList.remove("selectedDom");
+            event.target.classList.remove("selected-dom");
         };
 
         const scrapContentOnMousedown = (event) => {

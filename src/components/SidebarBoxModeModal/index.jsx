@@ -38,6 +38,7 @@ const SidebarBoxModeModal = () => {
     const toggleBoxBorderOnClick = useCallback(() => {
         const boxShadowValue = isBoxBorder ? BOX_NO_SHADOW : BOX_SHADOW;
         const boxes = document.getElementsByClassName(BOX_COMPONENT_CLASS_NAME);
+
         Array.from(boxes).forEach((box) => (box.style.boxShadow = boxShadowValue));
         setIsBoxBorder(!isBoxBorder);
     }, [isBoxBorder]);

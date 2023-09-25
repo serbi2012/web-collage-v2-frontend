@@ -45,13 +45,13 @@ const WebWindow = () => {
         const webWindowContentMouseover = (event) => {
             if (!isScrapModeRef.current) return;
 
-            event.target.classList.add("selectedDom");
+            event.target.classList.add("selected-dom");
         };
 
         const webWindowContentMouseout = (event) => {
             if (!isScrapModeRef.current) return;
 
-            event.target.classList.remove("selectedDom");
+            event.target.classList.remove("selected-dom");
         };
 
         const webWindowMousedown = (event) => {

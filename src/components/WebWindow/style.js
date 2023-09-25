@@ -19,7 +19,7 @@ export const S = {
             cursor: pointer;
         }
 
-        .selectedDom {
+        .selected-dom {
             box-shadow: 0 0 0 2px #ff676775;
             border-radius: 2px;
         }

@@ -15,7 +15,7 @@ const SortBoxOption = ({ alignItems, flexDirection, rotate, sortDirection }) => 
 
     return (
         <S.MainWrapper onClick={sortBoxOnClick}>
-            <div data-testid="sortBoxOption" className={`sortBox ${sortDirection} ${rotate && "rotate"}`}>
+            <div data-testid="sortBoxOption" className={`${sortDirection} ${rotate && "rotate"}`}>
                 <S.BigFigure />
                 <S.SmallFigure />
             </div>
