@@ -171,6 +171,29 @@ E11·E12는 결번(검증 중 폐기한 시나리오). 케이스별 자동 합�
 | R11 | Windows: Alt 단독 입력은 크롬 메뉴로 포커스를 옮길 수 있고, **Alt+Shift 는 입력 언어 전환** 단축키일 수 있음 → Alt+휠·Alt 드래그·Alt+Shift+K 실물 확인 필요 | M0(소유자) |
 | R12 | 스냅샷을 시간 조각으로 나누면(M1) 그 사이 DOM 이 바뀌어(캐러셀·SPA) **찢어진 조각**이 될 수 있음 → 변경 감지·재시도 | M1 |
 
+## 5-1. Windows 결과 (v2 빌드, 2026-10-07) — PLAN S5 / M0 ✅ 항목
+
+> **결론: Windows 11 에서도 플랜 A 동작.** 진짜 OS 마우스 입력(SendInput)으로 페이지 → 사이드 패널 드래그가 넘어가고, **번호표(커스텀 MIME)가 매번 도착**했다.
+> 환경: Windows 11 Pro 10.0.26200, 배율 100%, **Chrome for Testing 155.0.8059.39**(정식 Chrome 137+ 는 `--load-extension` 을 무시해서), v2 E2E 빌드, `e2e/` 하네스 OS 모드.
+
+| 케이스 | 번호표 | kind / tag | 스냅샷 | 드롭→표시 |
+|---|---|---|---|---|
+| CORE 카드 | ✅ | element / article | 18ms | 50ms |
+| E1 이미지 | ✅ | element / img | 6ms | 9ms |
+| E2 링크 | ✅ | element / a | 2ms | 25ms |
+| E3 Referer 검사 이미지 | ✅ | element / img (Referer 재시도 성공) | 1ms | 7ms |
+| E4 표 → 새 박스 | ✅ | element / table | 8ms | 8ms |
+| E14 Alt+휠로 부모 넓히기 | ✅ | element / article | 8ms | 10ms |
+| G2 편집 영역 직접 끌기 | — | (드롭 없음 = 크롬 동작 그대로) | | |
+| G2·G3 라벨 손잡이 | ✅ | element / section, via=handle | 9ms | 19ms |
+| E5a Alt 누른 채 선택 → 끌기 | ✅ | selection / p | 8ms | 9ms |
+| E5b 선택 후 Alt 떼고 끌기 | ✅ | selection / p | 1ms | 8ms |
+| 선택 없을 때 요소 드래그 회귀 | ✅ | element / article | 9ms | 7ms |
+
+- **R11(Windows Alt)**: Alt+휠, Alt+드래그 선택 모두 정상. Alt 를 눌렀다 떼도 페이지 쪽 동작이 깨지지 않았다.
+- **아직 미확인**: Alt+Shift+K 단축키(입력 언어 전환과 겹치는지 — 하네스는 일부러 안 씀), 소유자 PC 의 **정식 Chrome**(웹스토어/압축해제 로드), Mac.
+- 나머지 케이스(E6~E10, E13, E15, F1, G17, M2a~e, P1~P4 — 총 42개)는 CDP 모드로 전부 통과 (D19).
+
 ## 6. 알려진 한계 (M1~M2에서 해결)
 
 | 한계 | 예 | 방향 |

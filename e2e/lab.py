@@ -157,13 +157,18 @@ _CAL_JS = """
 
 def calibrate(cdp, probe):
     """화면 좌표 → 문서 client 좌표 오프셋을 실제 마우스를 움직여서 측정"""
-    cdp.eval(_CAL_JS)
-    winput.move(probe[0] - 30, probe[1] - 30)
-    time.sleep(0.15)
-    winput.move(probe[0], probe[1])
-    time.sleep(0.3)
-    lm = cdp.eval('window.__lm')
-    if lm['x'] < 0:
+    lm = None
+    for _ in range(3):  # 페이지가 막 다시 그려진 경우(문서 교체) 리스너를 다시 건다
+        cdp.eval(_CAL_JS)
+        winput.move(probe[0] - 30, probe[1] - 30)
+        time.sleep(0.15)
+        winput.move(probe[0], probe[1])
+        time.sleep(0.3)
+        lm = cdp.eval('window.__lm')
+        if lm and lm['x'] >= 0:
+            break
+        time.sleep(0.5)
+    if not lm or lm['x'] < 0:
         raise RuntimeError('calibration failed: no mousemove seen at %r' % (probe,))
     return probe[0] - lm['x'], probe[1] - lm['y']
 
