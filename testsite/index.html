@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Spike Daily — 기본 테스트 페이지</title>
+<style>
+  @font-face { font-family: "SpikeDisplay"; src: url("fonts/spike-display.otf") format("opentype"); }
+  :root { --brand: #3a5bd9; --paper: #fffdf8; }
+  body { margin: 0; font-family: "Noto Sans KR", sans-serif; background: #eef0f4; color: #222; }
+  header.site { position: sticky; top: 0; background: var(--brand); color: #fff; padding: 12px 24px; font-weight: 700; z-index: 10; }
+  main { max-width: 860px; margin: 24px auto; display: grid; grid-template-columns: 1fr 260px; gap: 20px; }
+  /* 부모 선택자에 의존하는 스타일: 떼어내면 날아가는 대표 케이스 */
+  .article .card { background: var(--paper) url("img/pattern.svg"); border-radius: 14px; padding: 18px 20px; box-shadow: 0 6px 18px rgba(30,40,80,.12); }
+  .article .card h2 { font-family: "SpikeDisplay", monospace; font-size: 28px; margin: 4px 0 10px; color: var(--brand); letter-spacing: -0.5px; }
+  .article .card p { line-height: 1.7; color: #4a4a55; }
+  .article .card .meta { font-size: 12px; color: #8a8a96; display: flex; gap: 8px; align-items: center; }
+  .badge::before { content: "★ NEW"; background: #ff5a5f; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px; margin-right: 6px; }
+  .card img.hero { width: 100%; border-radius: 10px; display: block; }
+  .icon { width: 16px; height: 16px; fill: #f5a623; vertical-align: -3px; }
+  aside .box { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+  aside a { color: var(--brand); font-weight: 600; }
+  table.stats { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.stats th, table.stats td { border-bottom: 1px solid #e6e6ee; padding: 6px 8px; text-align: left; }
+  table.stats tr:nth-child(even) td { background: #f7f8fc; }
+  .quote { font-style: italic; border-left: 4px solid var(--brand); padding-left: 12px; color: #555; }
+  #protected-wrap img { width: 150px; }
+</style>
+</head>
+<body>
+<header class="site">Spike Daily</header>
+<main>
+  <section class="article">
+    <article class="card" id="card-news">
+      <div class="meta"><span class="badge">기술</span><svg class="icon"><use href="#icon-star"></use></svg><span>2026. 10. 07</span></div>
+      <h2>Drag Anything</h2>
+      <img class="hero" id="photo" src="img/photo-small.png" srcset="img/photo-small.png 1x, img/photo.png 2x" alt="산과 해">
+      <p id="para">웹 콜라주는 페이지에서 필요한 조각만 <b>끌어다</b> 모아 나만의 문서를 만드는 도구입니다. 이 문단은 부모 선택자(.article .card p)로만 스타일이 지정되어 있어서, 그냥 떼어내면 모양이 바뀌는 대표적인 경우예요.</p>
+      <p class="quote">“가져온 조각이 원본과 똑같아 보여야 한다.”</p>
+    </article>
+  </section>
+  <aside>
+    <div class="box" id="link-box"><a id="link-ref" href="/docs/guide.html">상대경로 링크: 가이드 문서</a></div>
+    <div class="box" id="table-box">
+      <table class="stats" id="table-small">
+        <tr><th>사이트</th><th>결과</th></tr>
+        <tr><td>네이버</td><td>?</td></tr>
+        <tr><td>유튜브</td><td>?</td></tr>
+        <tr><td>MDN</td><td>?</td></tr>
+      </table>
+    </div>
+    <div class="box" id="protected-wrap"><img id="protected" src="/protected/protected.png" alt="핫링크 보호 이미지"><div>↑ Referer 엄격 검사 이미지</div></div>
+  </aside>
+</main>
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="icon-star" viewBox="0 0 24 24"><path d="M12 2l3 7h7l-5.5 4.5L18.5 21 12 16.8 5.5 21l2-7.5L2 9h7z"/></symbol>
+</svg>
+</body>
+</html>
