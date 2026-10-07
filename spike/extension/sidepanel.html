@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Web Collage</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand"><span class="dot"></span>Web Collage <small>spike</small></div>
+      <div class="hint">페이지에서 요소를 <b>끌어다</b> 박스에 놓으세요 · <kbd>Alt</kbd>+휠 부모로 넓히기 · <kbd>Esc</kbd> 일시정지</div>
+    </header>
+
+    <main id="board">
+      <section class="box" data-box="0">
+        <h2 class="box-title">Box 1</h2>
+        <div class="blocks"></div>
+      </section>
+      <section class="box" data-box="1">
+        <h2 class="box-title">Box 2</h2>
+        <div class="blocks"></div>
+      </section>
+      <section class="box new-box" data-box="new">
+        <div class="new-label">＋ 여기에 놓으면 새 박스</div>
+      </section>
+    </main>
+
+    <details id="logwrap">
+      <summary>검증 로그 <span id="logcount">0</span></summary>
+      <ol id="log"></ol>
+    </details>
+
+    <div id="indicator" aria-hidden="true"></div>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

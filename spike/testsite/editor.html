@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Editor — 편집 가능한 영역 (손잡이 테스트)</title>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 40px 30px; background: #f5f7fb; }
+  .demo { width: 560px; background: #fff; border: 1px solid #d7dce5; border-radius: 10px; overflow: hidden; }
+  .demo header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #eef1f7; font-weight: 600; }
+  /* MDN 라이브 예제처럼: 대부분의 면적이 편집 가능한 코드 영역 */
+  .code { font: 14px/1.7 ui-monospace, monospace; padding: 14px; min-height: 160px; outline: none; background: #fbfcff; color: #1f3a8a; white-space: pre; }
+  .out { padding: 18px; border-top: 1px solid #e3e7ef; }
+  .shadowbox { padding: 18px; border: 2px solid #333; box-shadow: 10px 5px 5px red; display: inline-block; }
+</style>
+</head>
+<body>
+  <section class="demo" id="demo">
+    <header><span>CSS Demo: box-shadow</span><button>Reset</button></header>
+    <div class="code" id="code" contenteditable="true" spellcheck="false">box-shadow: 10px 5px 5px red;
+box-shadow: 60px -16px teal;
+box-shadow: inset 5em 1em gold;</div>
+    <div class="out"><div class="shadowbox">This is a box with a box-shadow.</div></div>
+  </section>
+</body>
+</html>

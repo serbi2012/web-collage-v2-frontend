@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Web Collage Spike",
+  "version": "0.1.0",
+  "description": "기술 검증용: 실제 페이지의 요소를 끌어서 사이드 패널에 스크랩합니다.",
+  "minimum_chrome_version": "116",
+  "permissions": ["sidePanel", "storage", "declarativeNetRequestWithHostAccess"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Web Collage 패널 열기" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Shift+K" },
+      "description": "콜라주 패널 열기"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ]
+}
