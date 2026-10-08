@@ -1,0 +1,6 @@
+{
+  "extName": { "message": "Web Collage" },
+  "extDesc": { "message": "Drag any piece of any web page — exactly as it looks — into a side-panel collage, and rearrange it your way." },
+  "actionTitle": { "message": "Open the Web Collage panel" },
+  "cmdOpen": { "message": "Open the collage panel" }
+}

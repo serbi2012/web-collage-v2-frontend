@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { BoxNode, TreeNode } from '../shared/types';
 import { MAX_BOX_DEPTH } from '../shared/constants';
 import { WC_MOVE_MIME } from '../shared/protocol';
+import { t } from '../shared/i18n';
 import { usePanel } from './store';
 import { BlockView } from './BlockView';
 import { setMoving } from './dnd';
@@ -42,7 +43,14 @@ export function BoxView({ node, depth }: { node: BoxNode; depth: number }) {
     });
 
   return (
-    <section className={`box depth-${depth}`} data-id={node.id} data-node-id={node.id} data-box={boxIndex} data-testid="box">
+    <section
+      className={`box depth-${depth}`}
+      data-id={node.id}
+      data-node-id={node.id}
+      data-box={boxIndex}
+      data-testid="box"
+      aria-label={node.title || t('unnamedBox')}
+    >
       <div
         className="box-head"
         draggable={!editing}
@@ -61,6 +69,7 @@ export function BoxView({ node, depth }: { node: BoxNode; depth: number }) {
           <input
             className="box-title-input"
             autoFocus
+            aria-label={t('rename')}
             defaultValue={node.title || ''}
             onBlur={(e) => {
               setTitle(e.target.value);
@@ -72,12 +81,20 @@ export function BoxView({ node, depth }: { node: BoxNode; depth: number }) {
             }}
           />
         ) : (
-          <h2 className="box-title" title="두 번 눌러 이름 바꾸기" onDoubleClick={() => setEditing(true)}>
-            {node.title || '이름 없는 박스'}
+          <h2
+            className="box-title"
+            title={t('boxRenameHint')}
+            tabIndex={0}
+            onDoubleClick={() => setEditing(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'F2') setEditing(true);
+            }}
+          >
+            {node.title || t('unnamedBox')}
           </h2>
         )}
         <button
-          title={node.direction === 'column' ? '가로로 정렬' : '세로로 정렬'}
+          title={node.direction === 'column' ? t('toRow') : t('toColumn')}
           onClick={() =>
             apply((d) => {
               const f = find(d.root, node.id);
@@ -85,27 +102,27 @@ export function BoxView({ node, depth }: { node: BoxNode; depth: number }) {
             })
           }
         >
-          {node.direction === 'column' ? '↕ 세로' : '↔ 가로'}
+          {node.direction === 'column' ? t('dirColumn') : t('dirRow')}
         </button>
         {depth < MAX_BOX_DEPTH && (
-          <button title="안에 박스 추가" onClick={() => apply((d) => void insert(d.root, node.id, Number.MAX_SAFE_INTEGER, makeBox('새 박스')))}>
-            ＋박스
+          <button title={t('addBox')} onClick={() => apply((d) => void insert(d.root, node.id, Number.MAX_SAFE_INTEGER, makeBox(t('newBox'))))}>
+            {t('addBoxShort')}
           </button>
         )}
-        <button title="위로" onClick={() => apply((d) => void nudge(d.root, node.id, -1))}>
+        <button title={t('up')} aria-label={t('up')} onClick={() => apply((d) => void nudge(d.root, node.id, -1))}>
           ↑
         </button>
-        <button title="아래로" onClick={() => apply((d) => void nudge(d.root, node.id, 1))}>
+        <button title={t('down')} aria-label={t('down')} onClick={() => apply((d) => void nudge(d.root, node.id, 1))}>
           ↓
         </button>
-        <button title="복제" onClick={() => apply((d) => void duplicate(d.root, node.id))}>
+        <button title={t('duplicate')} aria-label={t('duplicate')} onClick={() => apply((d) => void duplicate(d.root, node.id))}>
           ⧉
         </button>
-        <button className="del" title="박스 삭제" onClick={() => apply((d) => void remove(d.root, node.id))}>
+        <button className="del" title={t('deleteBox')} aria-label={t('deleteBox')} onClick={() => apply((d) => void remove(d.root, node.id))}>
           ✕
         </button>
       </div>
-      <div className={`blocks dir-${node.direction}`} data-children-of={node.id} data-dir={node.direction}>
+      <div className={`blocks dir-${node.direction}`} data-children-of={node.id} data-dir={node.direction} data-empty={t('emptyBox')}>
         <Children box={node} depth={depth} />
       </div>
     </section>

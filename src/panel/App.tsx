@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { WC_MOVE_MIME, type PanelPortMsg, PANEL_PORT } from '../shared/protocol';
 import type { ThemeId } from '../shared/types';
+import { t } from '../shared/i18n';
+import { getSettings, onSettingsChanged, setSettings, type Settings } from '../shared/settings';
 import { usePanel } from './store';
 import { Children } from './BoxView';
 import { autoScroll, dropSpot, showIndicator } from './dnd';
@@ -21,6 +23,12 @@ export function App() {
   const indicatorRef = useRef<HTMLDivElement>(null);
   const windowIdRef = useRef<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [settings, setLocalSettings] = useState<Settings | null>(null);
+
+  useEffect(() => {
+    getSettings().then(setLocalSettings);
+    return onSettingsChanged(setLocalSettings);
+  }, []);
 
   // ---------------------------------------------------------------- 패널 ↔ background 연결 (창 단위 스크랩 모드, R4 재연결)
   useEffect(() => {
@@ -114,8 +122,8 @@ export function App() {
   // ---------------------------------------------------------------- Undo / Redo (패널 안)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (t.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const tg = e.target as HTMLElement;
+      if (tg.closest('input, textarea, select, [contenteditable="true"]') || tg.shadowRoot) return;
       if (!(e.ctrlKey || e.metaKey)) return;
       const k = e.key.toLowerCase();
       if (k === 'z' && !e.shiftKey) {
@@ -132,16 +140,17 @@ export function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = doc?.theme || 'light';
+    document.documentElement.lang = navigator.language.startsWith('ko') ? 'ko' : 'en';
   }, [doc?.theme]);
 
-  if (!doc) return <div className="loading">불러오는 중…</div>;
+  if (!doc) return <div className="loading">{t('loading')}</div>;
 
   const run = (label: string, fn: () => Promise<unknown>) => async () => {
     setBusy(label);
     try {
       await fn();
     } catch (e) {
-      alert(`${label} 실패: ${e instanceof Error ? e.message : e}`);
+      alert(t('failed', label, e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy(null);
     }
@@ -152,80 +161,95 @@ export function App() {
       <header className="top">
         <div className="row">
           <div className="brand">
-            <span className="dot" />
+            <span className="dot" aria-hidden />
             Web Collage
           </div>
-          <select className="collage-select" value={doc.id} title="콜라주 고르기" onChange={(e) => openCollage(e.target.value)}>
+          <select className="collage-select" value={doc.id} title={t('pickCollage')} aria-label={t('pickCollage')} onChange={(e) => openCollage(e.target.value)}>
             {collages.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
               </option>
             ))}
           </select>
-          <button title="새 콜라주" onClick={() => newCollage()}>
+          <button title={t('newCollage')} aria-label={t('newCollage')} onClick={() => newCollage()}>
             ＋
           </button>
           <button
-            title="이름 바꾸기"
+            title={t('rename')}
+            aria-label={t('rename')}
             onClick={() => {
-              const t = prompt('콜라주 이름', doc.title);
-              if (t && t.trim()) apply((d) => void (d.title = t.trim()));
+              const v = prompt(t('renamePrompt'), doc.title);
+              if (v && v.trim()) apply((d) => void (d.title = v.trim()));
             }}
           >
             ✎
           </button>
           <button
-            title="이 콜라주 삭제"
+            title={t('deleteCollage')}
+            aria-label={t('deleteCollage')}
             onClick={() => {
-              if (confirm(`"${doc.title}" 콜라주를 삭제할까요? 되돌릴 수 없습니다.`)) deleteCollage(doc.id);
+              if (confirm(t('deleteConfirm', doc.title))) deleteCollage(doc.id);
             }}
           >
             🗑
           </button>
+          <button title={t('settings')} aria-label={t('settings')} onClick={() => chrome.runtime.openOptionsPage()}>
+            ⚙
+          </button>
         </div>
         <div className="row">
-          <label className={`switch${scrap ? ' on' : ''}`} title="켜져 있으면 이 창의 페이지에서 요소를 하이라이트하고 끌 수 있습니다. 끄면 페이지를 평소대로 쓸 수 있습니다.">
+          <label className={`switch${scrap ? ' on' : ''}`} title={t('scrapTitle')}>
             <input type="checkbox" checked={scrap} onChange={toggleScrap} data-testid="scrap-switch" />
-            <span className="knob" />
-            스크랩 {scrap ? '켜짐' : '꺼짐'}
+            <span className="knob" aria-hidden />
+            {scrap ? t('scrapOn') : t('scrapOff')}
           </label>
           <span className="spacer" />
-          <button title="되돌리기 (Ctrl+Z)" disabled={!canUndo} onClick={undo}>
+          <button title={t('undo')} aria-label={t('undo')} disabled={!canUndo} onClick={undo}>
             ↶
           </button>
-          <button title="다시 하기 (Ctrl+Shift+Z)" disabled={!canRedo} onClick={redo}>
+          <button title={t('redo')} aria-label={t('redo')} disabled={!canRedo} onClick={redo}>
             ↷
           </button>
-          <select
-            title="테마"
-            value={doc.theme}
-            onChange={(e) => apply((d) => void (d.theme = e.target.value as ThemeId))}
-          >
-            <option value="light">라이트</option>
-            <option value="dark">다크</option>
-            <option value="sepia">세피아</option>
+          <select title={t('theme')} aria-label={t('theme')} value={doc.theme} onChange={(e) => apply((d) => void (d.theme = e.target.value as ThemeId))}>
+            <option value="light">{t('themeLight')}</option>
+            <option value="dark">{t('themeDark')}</option>
+            <option value="sepia">{t('themeSepia')}</option>
           </select>
+          <button
+            className={`toggle${doc.readable ? ' on' : ''}`}
+            title={t('readableTitle')}
+            aria-pressed={!!doc.readable}
+            onClick={() => apply((d) => void (d.readable = !d.readable))}
+          >
+            Aa
+          </button>
           <details className="menu">
-            <summary title="내보내기">내보내기</summary>
-            <div className="menu-items">
-              <button onClick={run('HTML 내보내기', () => exportHtmlFile(doc))}>단일 HTML 파일</button>
-              <button onClick={run('Markdown 내보내기', () => exportMarkdownZip(doc))}>Markdown (+이미지 zip)</button>
-              <button onClick={run('인쇄', () => openPrint(doc))}>인쇄 / PDF</button>
+            <summary title={t('export')}>{t('export')}</summary>
+            <div className="menu-items" role="menu">
+              <button role="menuitem" onClick={run(t('exportHtml'), () => exportHtmlFile(doc))}>
+                {t('exportHtml')}
+              </button>
+              <button role="menuitem" onClick={run(t('exportMd'), () => exportMarkdownZip(doc))}>
+                {t('exportMd')}
+              </button>
+              <button role="menuitem" onClick={run(t('print'), () => openPrint(doc))}>
+                {t('print')}
+              </button>
             </div>
           </details>
         </div>
-        <div className="hint">
-          페이지에서 요소를 <b>끌어다</b> 놓으세요 · <kbd>Alt</kbd>+휠 부모로 넓히기 · 라벨 <b>⠿</b> 잡고 끌기 · <kbd>Alt</kbd>+드래그 글자 선택
-          {busy && <span className="busy"> · {busy} 중…</span>}
-        </div>
+        <div className="hint" dangerouslySetInnerHTML={{ __html: t('hint') }} />
+        {busy && <div className="hint busy">{t('busy', busy)}</div>}
       </header>
 
-      <main id="board" className="board" data-testid="board">
+      {settings && !settings.onboarded && <Onboarding onDone={() => setSettings({ onboarded: true })} />}
+
+      <main id="board" className={`board${doc.readable ? ' readable' : ''}`} data-testid="board">
         <div className="blocks root-children" data-children-of={doc.root.id} data-dir="column">
           <Children box={doc.root} depth={0} />
         </div>
         <section className="box new-box" data-box="new" data-testid="new-box">
-          <div className="new-label">＋ 여기에 놓으면 새 박스</div>
+          <div className="new-label">{t('newBoxDrop')}</div>
         </section>
       </main>
 
@@ -235,12 +259,37 @@ export function App() {
   );
 }
 
+/** M4 첫 실행 안내 (사전 문자열만 넣으므로 innerHTML 이 안전) */
+function Onboarding({ onDone }: { onDone: () => void }) {
+  const keys = ['ob1', 'ob2', 'ob3', 'ob4', 'ob5'] as const;
+  return (
+    <section className="onboarding" role="note" aria-label={t('obTitle')}>
+      <h2>{t('obTitle')}</h2>
+      <ol
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest('[data-shortcuts]')) {
+            e.preventDefault();
+            chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+          }
+        }}
+      >
+        {keys.map((k) => (
+          <li key={k} dangerouslySetInnerHTML={{ __html: t(k) }} />
+        ))}
+      </ol>
+      <button className="primary" onClick={onDone}>
+        {t('obDone')}
+      </button>
+    </section>
+  );
+}
+
 function LogPanel() {
   const items = useLog((s) => s.items);
   return (
     <details id="logwrap">
       <summary>
-        검증 로그 <span id="logcount">{items.length}</span>
+        {t('log')} <span id="logcount">{items.length}</span>
       </summary>
       <ol id="log">
         {items.map((r, i) => (
@@ -252,15 +301,20 @@ function LogPanel() {
 }
 
 function LogItem({ r }: { r: DropReport }) {
-  if (r.kind === 'move') return <li><span className="ok">이동</span> → Box {Number(r.box) + 1} #{String(r.index)}</li>;
+  if (r.kind === 'move')
+    return (
+      <li>
+        <span className="ok">{t('logMove')}</span> → Box {Number(r.box) + 1} #{String(r.index)}
+      </li>
+    );
   const meta = r.meta as { url?: string; tag?: string } | null;
   const st = (r.stats || {}) as { snapshotMs?: number; nodes?: number };
   const okDrop = !!r.customTypeArrived;
-  const label = okDrop ? '드롭 OK' : r.fallbackUsed ? '드롭 OK(폴백)' : '외부 드롭';
+  const label = okDrop ? t('logOk') : r.fallbackUsed ? t('logFallback') : t('logForeign');
   return (
     <li>
-      <span className={okDrop ? 'ok' : r.fallbackUsed ? 'warn' : 'bad'}>{label}</span> {meta?.url ? new URL(meta.url).host : ''} &lt;{meta?.tag || '?'}&gt; · 타입{' '}
-      {(r.types as string[]).length}개 · 스냅샷 {st.snapshotMs ?? '-'}ms/{st.nodes ?? '-'}노드 · 드롭→표시 {String(r.dropToVisibleMs ?? '-')}ms
+      <span className={okDrop ? 'ok' : r.fallbackUsed ? 'warn' : 'bad'}>{label}</span> {meta?.url ? new URL(meta.url).host : ''} &lt;{meta?.tag || '?'}&gt; · types{' '}
+      {(r.types as string[]).length} · snapshot {st.snapshotMs ?? '-'}ms/{st.nodes ?? '-'} · drop→visible {String(r.dropToVisibleMs ?? '-')}ms
       {r.error ? <span className="bad"> · {String(r.error)}</span> : null}
     </li>
   );

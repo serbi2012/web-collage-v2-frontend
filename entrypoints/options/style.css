@@ -1,0 +1,18 @@
+:root { --bg: #f6f6f4; --panel: #fff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e3e2de; --accent: #ff5a5f; color-scheme: light dark; }
+@media (prefers-color-scheme: dark) { :root { --bg: #17171a; --panel: #212125; --ink: #ececef; --muted: #9c9ca3; --line: #34343a; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.6 system-ui, -apple-system, "Malgun Gothic", sans-serif; }
+main { max-width: 640px; margin: 0 auto; padding: 32px 20px 48px; }
+h1 { font-size: 20px; margin: 0 0 20px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+h2 { font-size: 14px; margin: 0 0 6px; }
+p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.radio { display: block; padding: 2px 0; }
+.row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+input[type='url'] { flex: 1; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
+input[type='number'] { width: 80px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+button { font: inherit; padding: 5px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); cursor: pointer; }
+button:hover { border-color: var(--muted); }
+:where(button, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+footer { color: var(--muted); font-size: 12px; }
+.msg { margin-left: 8px; color: var(--accent); }

@@ -8,6 +8,7 @@ import type { Spot } from './dnd';
 import { logResult, type DropReport } from './log';
 import { renderableFromClip, renderableFromRaw, setLiveRenderable } from './render';
 import { ask, saveExternalClip, saveRawClip } from './save-clip';
+import { getSettings } from '../shared/settings';
 
 // 블록이 처음 그려졌을 때 알려 받기 (드롭→표시 시간 측정: 조각 HTML 을 넣은 직후)
 const renderWaiters = new Map<ID, Array<() => void>>();
@@ -95,7 +96,7 @@ export async function handleDrop(dt: DataTransfer, spot: Spot, session: { firstT
   // ---------------------------------------------------------------- 페이지에서 끌어온 조각
   let meta: DragMeta | null = parseDragMeta(data[WC_MIME]);
   const customTypeArrived = !!meta;
-  const block = makeBlock(meta ? meta.id : crypto.randomUUID());
+  const block = makeBlock(meta ? meta.id : crypto.randomUUID(), (await getSettings()).defaultDisplay);
   const preview = (data['text/plain'] || data['text/uri-list'] || '').slice(0, 200);
   usePanel.getState().setBlockUi(block.id, { status: 'loading', preview });
   const placed = placeNode(spot, block);

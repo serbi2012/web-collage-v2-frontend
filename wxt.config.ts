@@ -20,18 +20,20 @@ export default defineConfig({
     define: { __E2E__: JSON.stringify(E2E) },
   }),
   manifest: {
-    name: 'Web Collage',
-    description: '아무 웹사이트에서나 보이는 그대로의 조각을 끌어 사이드 패널의 콜라주에 모으고, 내 방식대로 재구성합니다.',
+    // 다국어(M4): public/_locales/{ko,en}/messages.json
+    name: '__MSG_extName__',
+    description: '__MSG_extDesc__',
+    default_locale: 'ko',
     minimum_chrome_version: '116',
     // sidePanel 은 WXT 가 sidepanel 엔트리포인트를 보고 자동으로 추가한다.
     // scripting: 설치·업데이트 직후 이미 열려 있던 탭에 content script 주입(R4, PLAN M2)
     permissions: ['sidePanel', 'storage', 'declarativeNetRequestWithHostAccess', 'scripting'],
     host_permissions: ['<all_urls>'],
-    action: { default_title: 'Web Collage 패널 열기' },
+    action: { default_title: '__MSG_actionTitle__' },
     commands: {
       _execute_action: {
         suggested_key: { default: 'Alt+Shift+K' },
-        description: '콜라주 패널 열기',
+        description: '__MSG_cmdOpen__',
       },
     },
   },

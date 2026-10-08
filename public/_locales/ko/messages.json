@@ -1,0 +1,6 @@
+{
+  "extName": { "message": "Web Collage" },
+  "extDesc": { "message": "아무 웹사이트에서나 보이는 그대로의 조각을 끌어 사이드 패널의 콜라주에 모으고, 내 방식대로 재구성합니다." },
+  "actionTitle": { "message": "Web Collage 패널 열기" },
+  "cmdOpen": { "message": "콜라주 패널 열기" }
+}

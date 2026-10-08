@@ -3,7 +3,8 @@
 import type { BoxNode, Clip, CollageDoc, ID, TreeNode } from '../shared/types';
 import { ASSET_RE } from '../shared/constants';
 import { safeHost } from '../capture/url';
-import { bgCss } from '../panel/render';
+import { bgCss, READABLE_CSS } from '../panel/render';
+import { LANG, t } from '../shared/i18n';
 
 export const EXPORT_WIDTH = 920;
 
@@ -60,10 +61,11 @@ export function buildExportHtml(input: ExportInput): string {
     const css = `:host{all:initial;display:block;overflow:${display === 'original' ? 'auto' : 'hidden'}}
 .wrap{width:${w ? w + 'px' : 'auto'};zoom:${zoom.toFixed(4)};${withBg ? replaceAssets(bgCss(clip.ancestorBg) || '', assets) : ''}}
 ${display === 'reflow' ? REFLOW_CSS : ''}
-${replaceAssets(clip.css || '', assets)}`;
+${replaceAssets(clip.css || '', assets)}
+${doc.readable ? READABLE_CSS : ''}`;
     const src = clip.source.url && /^https?:/i.test(clip.source.url) ? clip.source.url : '';
     const cap = src
-      ? `<figcaption>출처: <a href="${escHtml(src)}" rel="noopener noreferrer">${escHtml(clip.source.title || safeHost(src))}</a> · ${escHtml(safeHost(src))}</figcaption>`
+      ? `<figcaption>${t('source')}: <a href="${escHtml(src)}" rel="noopener noreferrer">${escHtml(clip.source.title || safeHost(src))}</a> · ${escHtml(safeHost(src))}</figcaption>`
       : '';
     return (
       `<figure class="block"><div class="clip"><template shadowrootmode="open"><style>${escCss(css)}</style>` +
@@ -85,26 +87,26 @@ ${replaceAssets(clip.css || '', assets)}`;
   };
 
   const body = renderBox(doc.root, EXPORT_WIDTH, 0);
-  const css = `*{box-sizing:border-box}html,body{margin:0;background:${theme.bg};color:${theme.ink};font:15px/1.6 system-ui,-apple-system,"Malgun Gothic","Noto Sans KR",sans-serif}
+  const css = `:root{--ink:${theme.ink};--panel:${theme.panel};--line:${theme.line};--muted:${theme.muted};--accent:#ff5a5f}*{box-sizing:border-box}html,body{margin:0;background:${theme.bg};color:${theme.ink};font:15px/1.6 system-ui,-apple-system,"Malgun Gothic","Noto Sans KR",sans-serif}
 main{max-width:${EXPORT_WIDTH + 48}px;margin:0 auto;padding:32px 24px 64px}
 header h1{font-size:26px;margin:0 0 4px}header p{margin:0 0 24px;color:${theme.muted};font-size:13px}
 .kids{display:flex;flex-direction:column;gap:14px}.kids.dir-row{flex-direction:row;flex-wrap:wrap;align-items:flex-start}.kids.dir-row>*{flex:1 1 0;min-width:120px}
 .box{background:${theme.panel};border:1px solid ${theme.line};border-radius:10px;padding:10px}
 .box h2{margin:0 0 8px;font-size:13px;color:${theme.muted};font-weight:600}
-.block{margin:0;border:1px solid ${theme.line};border-radius:8px;overflow:hidden;background:#fff;break-inside:avoid}
+.block{margin:0;border:1px solid ${theme.line};border-radius:8px;overflow:hidden;background:${doc.readable ? theme.panel : '#fff'};break-inside:avoid}
 .block figcaption{font-size:11px;color:#6b6b70;padding:4px 8px;border-top:1px solid #eee;background:#fafafa}
 .block figcaption a{color:inherit}.ph{padding:12px;color:#999}
 @media print{body{background:#fff}main{padding:0}.box{break-inside:auto}}`;
-  const created = new Date().toLocaleString('ko-KR');
+  const created = new Date().toLocaleString(LANG === 'ko' ? 'ko-KR' : 'en-US');
   return `<!doctype html>
-<html lang="ko"><head><meta charset="utf-8">
+<html lang="${LANG}"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="script-src 'none'; object-src 'none'; base-uri 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="Web Collage 2">
 <title>${escHtml(doc.title)}</title>
 <style>${escCss([...fontFaces].join('\n'))}</style>
 <style>${css}</style>
-</head><body><main><header><h1>${escHtml(doc.title)}</h1><p>Web Collage 로 만든 콜라주 · ${escHtml(created)} · 각 조각의 출처는 아래에 표시됩니다</p></header>
+</head><body><main><header><h1>${escHtml(doc.title)}</h1><p>${escHtml(t('exportFooter', created))}</p></header>
 ${body}
 </main></body></html>`;
 }
