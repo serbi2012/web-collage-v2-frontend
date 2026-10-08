@@ -13,7 +13,7 @@ import { assetUrl, renderableFromClip, renderInto } from '../../src/panel/render
   }
   const r = await renderableFromClip(clip);
   host.style.width = clip.width + 'px';
-  renderInto(host, r, 'original', p.get('bg') !== '0');
+  renderInto(host, r, { display: 'original', withBg: p.get('bg') !== '0' });
   const imgs = Array.from(host.shadowRoot!.querySelectorAll('img'));
   await Promise.all(imgs.map((i) => (i.complete ? null : new Promise((res) => ((i.onload = i.onerror = res), setTimeout(res, 3000))))));
   await document.fonts.ready;

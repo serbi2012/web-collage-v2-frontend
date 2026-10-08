@@ -39,6 +39,20 @@ export interface BlockNode {
   display: DisplayMode;
   /** 루트가 투명한 조각에 원래 페이지 배경을 깔지 (기본: 깐다 — 원본과 같은 모양) */
   bg?: boolean;
+  /** M5 크기 배율 (기본 1). 맞춤 모드에선 패널 폭을 넘지 않게 */
+  scale?: number;
+  /** M5 형광펜·펜 주석 (조각 좌표, 축소 전 CSS px) */
+  ink?: Stroke[];
+}
+
+/** M5 주석 한 획 */
+export interface Stroke {
+  tool: 'pen' | 'hl';
+  color: string;
+  /** 선 굵기 (조각 좌표) */
+  w: number;
+  /** x0,y0,x1,y1,… (조각 좌표, 소수 1자리) */
+  pts: number[];
 }
 
 export type TreeNode = BoxNode | BlockNode;

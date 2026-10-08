@@ -25,7 +25,13 @@ export function buildMarkdown(doc: CollageDoc, clips: Map<ID, Clip>, assetPath: 
     out.push('---', '');
   };
   const node = (n: TreeNode, depth: number) => {
-    if (n.kind === 'block') return block(n.clipId ? clips.get(n.clipId) : undefined);
+    if (n.kind === 'block') {
+      if (n.type === 'note') {
+        if (n.note) out.push(n.note, '', '---', '');
+        return;
+      }
+      return block(n.clipId ? clips.get(n.clipId) : undefined);
+    }
     box(n, depth);
   };
   const box = (b: BoxNode, depth: number) => {

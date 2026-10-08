@@ -1,7 +1,7 @@
 // 조각 렌더링 (PLAN §6.4): 블록마다 Shadow DOM 격리, @font-face 는 패널 document.head 에 (G13), 폭은 CSS zoom 으로 맞춤
 import { db } from '../db/dexie';
 import { ASSET_RE } from '../shared/constants';
-import type { Clip, DisplayMode, ID } from '../shared/types';
+import type { Clip, DisplayMode, ID, Stroke } from '../shared/types';
 import type { RawClip } from '../shared/protocol';
 
 /** 렌더에 필요한 것만 (저장된 Clip 이든 막 도착한 RawClip 이든) */
@@ -31,10 +31,16 @@ export function bgCss(b: { color?: string; image?: string; repeat?: string; size
 
 // ---------------------------------------------------------------- 에셋 object URL (패널 수명 동안 캐시)
 const assetUrls = new Map<ID, Promise<string | null>>();
+const urlToAsset = new Map<string, ID>(); // M5 편집: object URL → 에셋 id (저장 때 되돌리기)
 export function assetUrl(id: ID): Promise<string | null> {
   let p = assetUrls.get(id);
   if (!p) {
-    p = db.assets.get(id).then((a) => (a ? URL.createObjectURL(a.blob) : null));
+    p = db.assets.get(id).then((a) => {
+      if (!a) return null;
+      const u = URL.createObjectURL(a.blob);
+      urlToAsset.set(u, id);
+      return u;
+    });
     assetUrls.set(id, p);
   }
   return p;
@@ -53,6 +59,11 @@ export async function resolveAssets(text: string): Promise<string> {
 // 같은 조각을 여러 블록이 쓰거나 다시 그릴 때 매번 DB 를 읽지 않게
 const renderables = new Map<ID, Promise<Renderable | null>>();
 const live = new Map<ID, Renderable>(); // 드롭 직후 임시 렌더 (저장 전)
+
+/** 저장된 조각이 바뀌었을 때(편집) 캐시를 버린다 */
+export function forgetRenderable(clipId: ID) {
+  renderables.delete(clipId);
+}
 
 export function setLiveRenderable(clipId: ID, r: Renderable | null) {
   if (r) live.set(clipId, r);
@@ -139,16 +150,30 @@ export const READABLE_CSS = `.wrap{color:var(--ink,#1d1d1f)!important;background
 .wrap *{color:inherit!important;background-color:transparent!important;background-image:none!important;font-family:inherit!important;text-shadow:none!important;border-color:var(--line,#ddd)!important;box-shadow:none!important}
 .wrap a{color:var(--accent,#3a5bd9)!important}`;
 
-export function renderInto(host: HTMLElement, r: Renderable, display: DisplayMode, withBg = true, readable = false) {
+export interface RenderOpts {
+  display: DisplayMode;
+  withBg?: boolean;
+  readable?: boolean;
+  /** M5 크기 배율 */
+  scale?: number;
+  /** M5 주석 */
+  ink?: Stroke[];
+}
+
+export function renderInto(host: HTMLElement, r: Renderable, o: RenderOpts) {
+  const { display } = o;
   const sr = host.shadowRoot || host.attachShadow({ mode: 'open' });
   sr.textContent = '';
   // 보안: CSS 는 textContent 로 넣어 "</style>" 로 빠져나가는 일을 막는다 (값은 페이지가 만든 것)
   const style = document.createElement('style');
   style.textContent = `:host{all:initial;display:block;overflow:hidden}
-.wrap{width:${r.width ? r.width + 'px' : 'auto'};${withBg && r.bg ? r.bg : ''}}
+.wrap{position:relative;width:${r.width ? r.width + 'px' : 'auto'};${o.withBg !== false && r.bg ? r.bg : ''}}
+.wrap[contenteditable=true]{outline:2px dashed var(--accent,#ff5a5f);outline-offset:-2px;cursor:text}
+.wrap.drawing{cursor:crosshair;user-select:none}
+svg.ink{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:2147483646}
 ${display === 'reflow' ? REFLOW_CSS : ''}
 ${r.css || ''}
-${readable ? READABLE_CSS : ''}`;
+${o.readable ? READABLE_CSS : ''}`;
   sr.appendChild(style);
   if (r.defs) {
     const t = document.createElement('template');
@@ -164,19 +189,66 @@ ${readable ? READABLE_CSS : ''}`;
     const src = r.fallbackSrc[Number(img.getAttribute('data-wc-fallback'))];
     if (src) img.setAttribute('src', src);
   });
+  renderInk(wrap, o.ink || []);
   injectFonts(r.fontFaces);
-  fit(host, r.width, display);
+  fit(host, r.width, display, o.scale);
 }
 
-export function fit(host: HTMLElement, width: number, display: DisplayMode) {
+// ---------------------------------------------------------------- M5 주석 레이어 (SVG)
+const SVG = 'http://www.w3.org/2000/svg';
+export const INK_STYLE: Record<Stroke['tool'], { opacity: number; blend: string }> = {
+  hl: { opacity: 0.38, blend: 'multiply' },
+  pen: { opacity: 1, blend: 'normal' },
+};
+
+export function strokePath(pts: number[]): string {
+  if (pts.length < 2) return '';
+  let d = `M${pts[0]} ${pts[1]}`;
+  for (let i = 2; i + 1 < pts.length; i += 2) d += `L${pts[i]} ${pts[i + 1]}`;
+  if (pts.length === 2) d += `L${pts[0] + 0.1} ${pts[1]}`; // 점 하나도 보이게
+  return d;
+}
+
+/** 주석 SVG 를 문자열로 (내보내기용). 값은 숫자·색 형식만 통과 */
+export function inkSvgString(ink: Stroke[] | undefined): string {
+  if (!ink || !ink.length) return '';
+  const paths = ink
+    .filter((k) => /^#[0-9a-f]{3,8}$/i.test(k.color) && Array.isArray(k.pts))
+    .map((k) => {
+      const st = INK_STYLE[k.tool] || INK_STYLE.pen;
+      const pts = k.pts.map((v) => Math.round(Number(v) * 10) / 10).filter((v) => Number.isFinite(v));
+      return `<path d="${strokePath(pts)}" fill="none" stroke="${k.color}" stroke-width="${Math.max(0.5, Math.min(60, Number(k.w) || 3))}" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="${st.opacity}" style="mix-blend-mode:${st.blend}"/>`;
+    })
+    .join('');
+  return `<svg class="ink" xmlns="${SVG}" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none">${paths}</svg>`;
+}
+
+export function renderInk(wrap: HTMLElement, ink: Stroke[]) {
+  wrap.querySelector(':scope > svg.ink')?.remove();
+  const t = document.createElement('template');
+  t.innerHTML = inkSvgString(ink) || `<svg class="ink" xmlns="${SVG}"></svg>`;
+  wrap.appendChild(t.content);
+}
+
+export function fit(host: HTMLElement, width: number, display: DisplayMode, scale = 1) {
   const wrap = host.shadowRoot?.querySelector<HTMLElement>('.wrap');
   if (!wrap) return;
+  const sc = Math.max(0.1, Math.min(4, scale || 1));
   if (display !== 'fit') {
-    wrap.style.zoom = '1';
+    wrap.style.zoom = String(sc);
     host.style.overflowX = display === 'original' ? 'auto' : 'hidden';
     return;
   }
   host.style.overflowX = 'hidden';
   const avail = host.clientWidth || host.parentElement?.clientWidth || width;
-  wrap.style.zoom = String(width && width > avail ? avail / width : 1);
+  // 맞춤: 패널 폭에 맞춘 뒤 배율을 곱하되 패널 폭을 넘지 않게
+  const base = width && width > avail ? avail / width : 1;
+  wrap.style.zoom = String(Math.min(base * sc, width ? avail / width : sc));
+}
+
+/** 편집한 HTML 의 object URL 을 저장 형식(wc-asset:<id>)으로 되돌린다 */
+export function unresolveAssets(html: string): string {
+  let out = html;
+  for (const [url, id] of urlToAsset) if (out.includes(url)) out = out.split(url).join('wc-asset:' + id);
+  return out;
 }

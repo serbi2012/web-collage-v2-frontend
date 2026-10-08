@@ -11,6 +11,11 @@ export function makeBlock(clipId: ID, display: DisplayMode = 'fit'): BlockNode {
   return { kind: 'block', id: uid(), type: 'clip', clipId, display };
 }
 
+/** M5 메모 블록 */
+export function makeNote(text = ''): BlockNode {
+  return { kind: 'block', id: uid(), type: 'note', note: text, display: 'fit' };
+}
+
 export function makeDoc(title = '새 콜라주', boxes = 1): CollageDoc {
   const now = Date.now();
   const root = makeBox(undefined, 'column');
