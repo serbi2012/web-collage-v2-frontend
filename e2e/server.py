@@ -17,7 +17,8 @@ class H(SimpleHTTPRequestHandler):
             f.write('%s %s\n' % (time.strftime('%H:%M:%S'), fmt % args))
 
     def end_headers(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
+        # /cors-page-only/: 페이지 출처에만 CORS 허락 (GitHub 웹폰트 사례 — 패널 출처에선 그대로 쓰면 실패)
+        self.send_header('Access-Control-Allow-Origin', 'http://127.0.0.1:8765' if getattr(self, '_page_only', False) else '*')
         self.send_header('Cache-Control', 'no-store')
         super().end_headers()
 
@@ -28,6 +29,9 @@ class H(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        self._page_only = self.path.startswith('/cors-page-only/')
+        if self._page_only:
+            self.path = '/fonts/' + self.path[len('/cors-page-only/'):]
         if self.path.startswith('/protected/'):
             ref = self.headers.get('Referer', '')
             with open(os.path.join(OUT, 'protected.log'), 'a', encoding='utf-8') as f:

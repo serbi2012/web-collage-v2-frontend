@@ -3,7 +3,7 @@
 //       메모리는 기다리는 쪽(waiters)과 진행 중인 화면 캡처 Promise 용.
 import { db, type ClipStoreRow } from '../db/dexie';
 import { CLIP_STORE_TTL_MS } from '../shared/constants';
-import { CURRENT_DRAG_TTL_MS, type ClipResult, type ContentMsg, type RawClip } from '../shared/protocol';
+import { CURRENT_DRAG_TTL_MS, type ClipResult, type ContentMsg, type FrameSnap, type RawClip } from '../shared/protocol';
 import { cropToDataUrl } from './screenshot';
 import { fontFacesFromSheet } from './assets';
 
@@ -31,8 +31,10 @@ export function onBegin(msg: Extract<ContentMsg, { type: 'clip:begin' }>, sender
     const t0 = Date.now();
     const windowId = sender.tab.windowId;
     // [G9] 하이라이트 오버레이가 화면에서 사라진 다음 프레임을 찍도록 아주 잠깐 대기 (captureVisibleTab 은 초당 2회 제한)
+    const capture = () => chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
     r.shotP = new Promise((res) => setTimeout(res, 90))
-      .then(() => chrome.tabs.captureVisibleTab(windowId, { format: 'png' }))
+      // 초당 2회 제한·탭 전환 직후 실패하면 한 번 더 (captureVisibleTab)
+      .then(() => capture().catch(() => new Promise((res) => setTimeout(res, 600)).then(capture)))
       .then((dataUrl) => ({ dataUrl, ms: Date.now() - t0 }))
       .catch((e: unknown) => ({ error: String(e instanceof Error ? e.message : e) }));
   }
@@ -60,6 +62,8 @@ export function onEnd(msg: Extract<ContentMsg, { type: 'clip:end' }>) {
 async function finalize(r: Live, clip: RawClip) {
   const t0 = Date.now();
   try {
+    // 0) iframe 내용: 그 프레임의 content script 가 뜬 스냅샷으로 대체 이미지를 바꾼다 (M1)
+    if (clip.frames?.length && r.row.tabId !== undefined) await mergeFrames(r.row.tabId, clip);
     // 1) 교차 출처 스타일시트의 @font-face 가져오기
     if (clip.crossOriginSheets?.length && clip.families?.length) {
       const fams = new Set(clip.families);
@@ -81,7 +85,7 @@ async function finalize(r: Live, clip: RawClip) {
         const bmp = await createImageBitmap(await (await fetch(shot.dataUrl)).blob());
         const vw = r.row.viewport?.w;
         const ratio = vw ? bmp.width / vw : 1;
-        clip.refShot = (await cropToDataUrl(bmp, r.row.rect, ratio)) || undefined;
+        clip.refShot = (await cropToDataUrl(bmp, clip.rect || r.row.rect, ratio)) || undefined;
         for (const fb of clip.fallbacks || []) fb.dataUrl = (await cropToDataUrl(bmp, fb.rect, ratio)) || undefined;
         bmp.close();
       } else {
@@ -92,6 +96,49 @@ async function finalize(r: Live, clip: RawClip) {
   } catch (e) {
     clip.finalizeError = String(e instanceof Error ? e.stack : e);
   }
+}
+
+async function mergeFrames(tabId: number, clip: RawClip) {
+  await Promise.all(
+    (clip.frames || []).map(async (f) => {
+      try {
+        const res = (await Promise.race([
+          chrome.tabs.sendMessage(tabId, { type: 'frame:snap', token: f.token }),
+          new Promise((resolve) => setTimeout(() => resolve({ error: 'timeout' }), 4000)),
+        ])) as FrameSnap | { error: string } | undefined;
+        if (!res || 'error' in res) {
+          f.ok = false;
+          f.error = res ? res.error : 'no response';
+          return;
+        }
+        const re = new RegExp(`<img data-wc-fallback="${f.n}"[^>]*>`);
+        const m = re.exec(clip.html);
+        if (!m) {
+          f.ok = false;
+          f.error = 'placeholder not found';
+          return;
+        }
+        const style = /style="([^"]*)"/.exec(m[0])?.[1] || '';
+        const box = style.replace(/object-fit:[^;]*;?/g, '') + 'overflow:hidden;position:relative;' + (/(^|;)display:/.test(style) ? '' : 'display:inline-block;');
+        const inner = `<div style="position:absolute;left:${-res.scrollX}px;top:${-res.scrollY}px;width:${res.width}px">${res.html}</div>`;
+        clip.html = clip.html.replace(m[0], `<div data-wc-frame="${f.n}" style="${box}">${inner}</div>`);
+        clip.css = [clip.css, res.css].filter(Boolean).join('\n');
+        clip.defs += res.defs;
+        const add = (into: string[], from: string[]) => {
+          for (const x of from) if (!into.includes(x)) into.push(x);
+        };
+        add(clip.families, res.families);
+        add(clip.fontFaces, res.fontFaces);
+        add(clip.crossOriginSheets, res.crossOriginSheets);
+        add(clip.imageUrls, res.imageUrls);
+        clip.stats.nodes += res.nodes;
+        f.ok = true;
+      } catch (e) {
+        f.ok = false;
+        f.error = String(e instanceof Error ? e.message : e);
+      }
+    }),
+  );
 }
 
 export async function getClip(id: string, timeoutMs = 15000): Promise<ClipResult> {

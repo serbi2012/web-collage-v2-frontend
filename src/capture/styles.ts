@@ -112,25 +112,91 @@ export function propList(): string[] {
   return PROPS;
 }
 
-export function styleText(cs: CSSStyleDeclaration, parentCS: CSSStyleDeclaration | null, defs: StyleMap, isRoot: boolean): { text: string; n: number } {
+/** 읽을 속성 묶음 (전체 ~380개 또는 큰 조각용 빠른 묶음) */
+export interface PropSet {
+  props: string[];
+  inh: boolean[];
+  index: Map<string, number>;
+}
+
+/**
+ * M1 성능: 요소가 아주 많은 조각(표 수천 칸 등)은 getPropertyValue 가 시간의 60% 가까이를 차지한다(7,100개 표 기준).
+ * 그런 조각만 화면 모양에 실제로 영향이 큰 속성만 읽는다. 작은 조각은 언제나 전체 목록 (D24).
+ */
+const FAST_PROPS = (
+  'display position top right bottom left float clear box-sizing min-width max-width min-height max-height ' +
+  'margin-top margin-right margin-bottom margin-left padding-top padding-right padding-bottom padding-left ' +
+  'border-top-width border-right-width border-bottom-width border-left-width border-top-style border-right-style ' +
+  'border-bottom-style border-left-style border-top-color border-right-color border-bottom-color border-left-color ' +
+  'border-top-left-radius border-top-right-radius border-bottom-left-radius border-bottom-right-radius ' +
+  'border-collapse border-spacing caption-side empty-cells table-layout vertical-align ' +
+  'background-color background-image background-position-x background-position-y background-size background-repeat background-clip ' +
+  'color font-family font-size font-style font-weight font-variant-caps font-stretch line-height letter-spacing word-spacing ' +
+  'text-align text-decoration-line text-decoration-color text-decoration-style text-transform text-indent text-overflow ' +
+  'text-shadow white-space-collapse text-wrap-mode word-break overflow-wrap direction writing-mode list-style-type ' +
+  'list-style-position list-style-image overflow-x overflow-y opacity visibility z-index box-shadow transform transform-origin ' +
+  'flex-direction flex-wrap flex-grow flex-shrink flex-basis justify-content align-items align-self align-content order ' +
+  'row-gap column-gap grid-template-columns grid-template-rows grid-column-start grid-column-end grid-row-start grid-row-end ' +
+  'grid-auto-flow object-fit object-position outline-style outline-width outline-color -webkit-line-clamp fill stroke'
+).split(/\s+/);
+
+const SETS: Partial<Record<'full' | 'fast', PropSet>> = {};
+export function propSet(fast = false): PropSet {
+  const key = fast ? 'fast' : 'full';
+  const hit = SETS[key];
+  if (hit) return hit;
+  const all = propList();
+  const props = fast ? all.filter((p) => FAST_PROPS.includes(p)) : all;
+  const set: PropSet = { props, inh: props.map((p) => INHERITED.has(p)), index: new Map(props.map((x, i) => [x, i])) };
+  SETS[key] = set;
+  return set;
+}
+
+/**
+ * 계산값을 속성 목록 순서대로 한 번만 읽어 배열로 (자식이 상속 비교할 때 부모 값을 다시 읽지 않게 — M1 성능)
+ */
+export function readValues(cs: CSSStyleDeclaration, set: PropSet = propSet()): string[] {
+  const props = set.props;
+  const vals = new Array<string>(props.length);
+  for (let i = 0; i < props.length; i++) vals[i] = cs.getPropertyValue(props[i]);
+  return vals;
+}
+
+export function styleText(
+  cs: CSSStyleDeclaration,
+  vals: string[],
+  parentVals: string[] | null,
+  defs: StyleMap,
+  isRoot: boolean,
+  set: PropSet = propSet(),
+): { text: string; n: number } {
+  const { props, inh, index } = set;
+  const get = (p: string) => {
+    const i = index.get(p);
+    return i !== undefined ? vals[i] : cs.getPropertyValue(p);
+  };
   let out = '';
   let n = 0;
   const has = new Set<string>();
-  for (const p of propList()) {
-    const v = cs.getPropertyValue(p);
+  const noTransform = get('transform') === 'none' && get('perspective') === 'none';
+  for (let i = 0; i < props.length; i++) {
+    const p = props[i];
+    const v = vals[i];
     if (!v) continue;
-    if (INHERITED.has(p)) {
-      if (!isRoot && parentCS && parentCS.getPropertyValue(p) === v) continue;
+    if (inh[i]) {
+      if (!isRoot && parentVals && parentVals[i] === v) continue;
     } else if (defs[p] === v) {
       continue;
     }
-    if ((p === 'transform-origin' || p === 'perspective-origin') && cs.transform === 'none' && cs.perspective === 'none') continue;
+    if ((p === 'transform-origin' || p === 'perspective-origin') && noTransform) continue;
     // 안 보이는 테두리/윤곽선 색은 생략(용량 절약)
-    const m = /^border-(top|right|bottom|left)-color$/.exec(p);
-    if (m && cs.getPropertyValue(`border-${m[1]}-style`) === 'none') continue;
-    if (p === 'outline-color' && cs.outlineStyle === 'none') continue;
-    if (p === 'column-rule-color' && cs.columnRuleStyle === 'none') continue;
-    if (p === 'text-decoration-color' && cs.textDecorationLine === 'none') continue;
+    if (p.startsWith('border-') && p.endsWith('-color')) {
+      const m = /^border-(top|right|bottom|left)-color$/.exec(p);
+      if (m && get(`border-${m[1]}-style`) === 'none') continue;
+    }
+    if (p === 'outline-color' && get('outline-style') === 'none') continue;
+    if (p === 'column-rule-color' && get('column-rule-style') === 'none') continue;
+    if (p === 'text-decoration-color' && get('text-decoration-line') === 'none') continue;
     out += p + ':' + v + ';';
     has.add(p);
     n++;
@@ -138,12 +204,14 @@ export function styleText(cs: CSSStyleDeclaration, parentCS: CSSStyleDeclaration
   // [G6] 테두리 스타일이 있으면 두께도 반드시 함께 (Tailwind 처럼 "solid + 0px" 인 경우,
   // 0px 이 기본값과 같다고 빼버리면 브라우저가 기본 두께 3px 로 그려버림)
   for (const side of ['top', 'right', 'bottom', 'left']) {
-    const bs = cs.getPropertyValue(`border-${side}-style`);
+    const bs = get(`border-${side}-style`);
     if (bs && bs !== 'none' && bs !== 'hidden' && !has.has(`border-${side}-width`)) {
-      out += `border-${side}-width:${cs.getPropertyValue(`border-${side}-width`)};`;
+      out += `border-${side}-width:${get(`border-${side}-width`)};`;
     }
   }
-  if (cs.outlineStyle && cs.outlineStyle !== 'none' && !has.has('outline-width')) out += `outline-width:${cs.outlineWidth};`;
-  if (cs.columnRuleStyle && cs.columnRuleStyle !== 'none' && !has.has('column-rule-width')) out += `column-rule-width:${cs.columnRuleWidth};`;
+  const os = get('outline-style');
+  if (os && os !== 'none' && !has.has('outline-width')) out += `outline-width:${get('outline-width')};`;
+  const crs = get('column-rule-style');
+  if (crs && crs !== 'none' && !has.has('column-rule-width')) out += `column-rule-width:${get('column-rule-width')};`;
   return { text: out, n };
 }

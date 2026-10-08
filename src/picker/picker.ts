@@ -2,7 +2,8 @@
 // 1) 스크랩 모드(이 창의 사이드 패널이 열려 있고 스위치가 켜져 있을 때)에서 마우스 아래 요소를 하이라이트
 // 2) 그 요소를 "브라우저 기본 드래그"로 끌 수 있게 무장(draggable=true)
 // 3) dragstart 순간엔 가벼운 번호표(DragMeta)만 dataTransfer 에 싣고, 스냅샷은 background 로 따로 보냄
-import { DRAG_HTML_MAX, DRAG_TEXT_MAX, WC_MIME, type ContentMsg, type DragMeta, type RawClip } from '../shared/protocol';
+import { DRAG_HTML_MAX, DRAG_TEXT_MAX, WC_MIME, type ContentMsg, type DragMeta, type FrameSnap, type RawClip } from '../shared/protocol';
+import { neutralizeHover } from '../capture/hover';
 import { snapshot } from '../capture/snapshot';
 import { createOverlay, describe, labelTop, type Overlay } from './overlay';
 
@@ -40,11 +41,46 @@ export function startPicker(signal: AbortSignal) {
     syncWheel();
   }
   send({ type: 'scrap:query' }, (res: unknown) => setEnabled(!!(res as { enabled?: boolean } | undefined)?.enabled));
-  const onBgMessage = (msg: unknown) => {
-    const m = msg as { type?: string; enabled?: boolean };
+  const onBgMessage = (msg: unknown, _sender: unknown, sendResponse: (r: unknown) => void) => {
+    const m = msg as { type?: string; enabled?: boolean; token?: string };
     if (m && m.type === 'scrap:state') setEnabled(!!m.enabled);
+    if (m && m.type === 'frame:snap' && typeof m.token === 'string' && frameTokens.has(m.token)) {
+      // M1 iframe 내용: 바깥 문서가 이 프레임에 건넨 번호표가 맞을 때만 응답 (다른 프레임은 응답하지 않음)
+      snapFrame(m.token).then(sendResponse, (e) => sendResponse({ error: String(e instanceof Error ? e.message : e) }));
+      return true;
+    }
+    return false;
   };
   chrome.runtime.onMessage.addListener(onBgMessage);
+
+  // 바깥 문서(부모 프레임)가 스냅샷 도중 건네는 번호표 (src/capture/snapshot.ts askFrame)
+  const frameTokens = new Set<string>();
+  on('message', (e) => {
+    const d = e.data as { wcFrameToken?: unknown } | null;
+    // 번호표는 무작위라 페이지 스크립트가 끼워 넣어도 background 가 물어보지 않으면 쓰이지 않는다
+    if (!d || typeof d.wcFrameToken !== 'string' || window === window.top) return;
+    frameTokens.add(d.wcFrameToken);
+    if (frameTokens.size > 20) frameTokens.delete(frameTokens.values().next().value!);
+  });
+  async function snapFrame(token: string): Promise<FrameSnap | { error: string }> {
+    frameTokens.delete(token);
+    const root = document.body || document.documentElement;
+    if (root.getElementsByTagName('*').length > 3000) return { error: 'frame too big' };
+    const s = await snapshot(root, { idPrefix: 'f' + token.slice(0, 6) + '-', frames: false });
+    return {
+      html: s.html,
+      css: s.css,
+      defs: s.defs,
+      scrollX: Math.round(window.scrollX),
+      scrollY: Math.round(window.scrollY),
+      width: s.width,
+      families: s.families,
+      fontFaces: s.fontFaces,
+      crossOriginSheets: s.crossOriginSheets,
+      imageUrls: s.imageUrls,
+      nodes: s.stats.nodes,
+    };
+  }
   signal.addEventListener('abort', () => {
     try {
       chrome.runtime.onMessage.removeListener(onBgMessage);
@@ -358,7 +394,16 @@ export function startPicker(signal: AbortSignal) {
     }
 
     // [G11] 링크/이미지 위에서 시작한 드래그도 우리 데이터로 덮고, 드래그 이미지는 대상 전체로 (이미지 드래그의 Files 는 남음 [G12])
-    if (kind === 'element') dt.clearData();
+    if (kind === 'element') {
+      dt.clearData();
+      // R9: 이미지 드래그엔 크롬이 이미지 파일(Files)을 붙인다 → Gmail·Drive 같은 업로드 드롭존이 "파일 업로드"로 받아 버린다.
+      // clearData() 는 파일 항목을 지우지 않으므로 items.clear() 로 함께 지운다 (dragstart 안에서만 쓰기 가능)
+      try {
+        dt.items.clear();
+      } catch {
+        /* 읽기 전용이면 그대로 */
+      }
+    }
     let omitMime = false;
     if (__E2E__) {
       // [E2E 전용 훅] 커스텀 MIME 을 일부러 빼서 clip:current 폴백을 테스트 (PLAN §6.2)
@@ -389,8 +434,11 @@ export function startPicker(signal: AbortSignal) {
 
     // [D4] 무거운 스냅샷은 드래그가 시작된 뒤에 (드래그 시작을 늦추지 않게)
     const armedEl = state.armed?.el;
+    const dragAt = performance.now();
     setTimeout(async () => {
       const t0 = performance.now();
+      // R6: 누른 채로 뜨는 스냅샷에 :hover·:active 모양이 박제되지 않게 잠깐 무효화 (원본 비교 캡처도 같은 상태가 되도록 250ms 이상 유지)
+      const restoreHover = neutralizeHover(root);
       let clip: RawClip | { error: string; meta: DragMeta };
       try {
         const s = await snapshot(root, { range, ignoreAttrsOn: armedEl });
@@ -399,6 +447,7 @@ export function startPicker(signal: AbortSignal) {
         clip = { error: String(err instanceof Error ? err.stack || err.message : err), meta };
       }
       send({ type: 'clip:put', id, clip });
+      setTimeout(restoreHover, Math.max(0, 250 - (performance.now() - dragAt)));
     }, 0);
   }
 
@@ -420,6 +469,16 @@ export function startPicker(signal: AbortSignal) {
     // 아무 페이지나 postMessage 로 패널을 열 수 있으면 안 되므로 배포 빌드에선 제거됨 (D16)
     on('message', (e) => {
       if (e.source === window && e.data && (e.data as { __wc?: string }).__wc === 'open-panel') send({ type: 'panel:open' });
+      // [E2E 전용 훅] 스냅샷 성능 측정: postMessage({__wc:'bench', selector}) → postMessage({__wcBench: 결과})
+      const d = e.data as { __wc?: string; selector?: string } | null;
+      if (e.source === window && d && d.__wc === 'bench' && d.selector) {
+        const el = document.querySelector(d.selector);
+        if (!el) return;
+        const t0 = performance.now();
+        snapshot(el).then((r) => {
+          window.postMessage({ __wcBench: { ms: Math.round(performance.now() - t0), nodes: r.stats.nodes, props: r.stats.props, htmlBytes: r.stats.htmlBytes } }, '*');
+        });
+      }
     });
   }
 

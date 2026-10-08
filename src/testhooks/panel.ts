@@ -17,6 +17,7 @@ export function installPanelTestHooks() {
       return doc.id;
     },
     doc: () => usePanel.getState().doc,
+    clip: (id: string) => db.clips.get(id),
     /** 긴 패널 만들기 (자동 스크롤 테스트) */
     addBoxes(n: number) {
       usePanel.getState().apply((d) => {

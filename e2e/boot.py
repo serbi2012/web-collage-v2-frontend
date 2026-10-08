@@ -45,6 +45,7 @@ def ps(cmd):
 def kill_previous():
     # 이 하네스가 띄운 크롬만 (디버깅 포트로 식별) + 테스트 서버
     ps(f"Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | Where-Object {{ $_.CommandLine -like '*--remote-debugging-port={lab.CDP_PORT}*' }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}")
+    ps("Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*launch-real-chrome*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }")
     ps("Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -like '*e2e*server.py*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }")
     time.sleep(1.0)
 
@@ -62,7 +63,42 @@ def start_server():
     sys.exit('테스트 서버가 뜨지 않았습니다')
 
 
+def start_real_chrome(url):
+    """WC_REAL_CHROME=1: 소유자 PC 의 정식 Google Chrome (별도 임시 프로필). 정식 Chrome 137+ 는 --load-extension 을 무시하므로
+    e2e/launch-real-chrome.mjs 가 CDP Extensions.loadUnpacked(파이프 연결)로 올린다."""
+    profile = os.path.join(lab.OUT, 'realchrome-profile')
+    if os.environ.get('KEEP_PROFILE') != '1' and os.path.isdir(profile):
+        import shutil
+        shutil.rmtree(profile, ignore_errors=True)
+    log = open(os.path.join(lab.OUT, 'realchrome.log'), 'w')
+    proc = subprocess.Popen(['node', os.path.join(HERE, 'launch-real-chrome.mjs'), EXT, str(lab.CDP_PORT), profile, f"{WIN['x']},{WIN['y']}"],
+                            stdout=log, stderr=log, cwd=ROOT)
+    for _ in range(120):
+        try:
+            with open(os.path.join(lab.OUT, 'realchrome.log')) as f:
+                txt = f.read()
+            if '"ok":true' in txt:
+                pid = json.loads(txt.strip().splitlines()[-1])['pid']
+                break
+        except Exception:
+            pass
+        time.sleep(0.25)
+    else:
+        sys.exit('정식 Chrome 실행 실패: ' + open(os.path.join(lab.OUT, 'realchrome.log')).read()[-500:])
+    pg, _ = lab.page('')
+    pg.call('Page.navigate', url=url)
+    time.sleep(1.5)
+
+    class P:  # main_hwnd 가 pid 만 쓴다
+        pass
+    p = P()
+    p.pid = pid
+    return p
+
+
 def start_chrome(url):
+    if os.environ.get('WC_REAL_CHROME') == '1':
+        return start_real_chrome(url)
     profile = os.path.join(lab.OUT, 'profile')
     if os.environ.get('KEEP_PROFILE') != '1' and os.path.isdir(profile):
         import shutil
@@ -73,6 +109,7 @@ def start_chrome(url):
             f'--remote-debugging-port={lab.CDP_PORT}', '--remote-allow-origins=*', '--lang=ko-KR', '--force-device-scale-factor=1',
             '--disable-features=Translate,OptimizationHints,MediaRouter,GlobalMediaControls,CalculateNativeWinOcclusion', '--disable-search-engine-choice-screen',
             '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling',
+            '--disable-lcd-text',  # 충실도 비교: 원본(흑백 안티에일리어싱)과 조각(LCD)이 달라지지 않게
             '--disable-sync', '--password-store=basic', url]
     log = open(os.path.join(lab.OUT, 'chrome.log'), 'w')
     proc = subprocess.Popen(args, stdout=log, stderr=log)
@@ -90,6 +127,11 @@ def main_hwnd(pid, timeout=10):
     while time.time() - t0 < timeout:
         # 브라우저 프로세스의 보이는 최상위 창 중 가장 큰 것
         hs = winput.windows_of_pid(pid)
+        if not hs:
+            # 정식 Chrome 을 puppeteer 로 띄우면 창이 숨김 상태로 시작할 수 있다 → 활성화하지 않고 보이게
+            hs = winput.windows_of_pid(pid, include_hidden=True)
+            for h in hs:
+                winput.user32.ShowWindow(h, 4)  # SW_SHOWNOACTIVATE
         if hs:
             return max(hs, key=lambda h: (lambda r: (r[2] - r[0]) * (r[3] - r[1]))(winput.window_rect(h)))
         time.sleep(0.25)
@@ -177,7 +219,7 @@ def boot(url=None):
     else:
         pn, _ = lab.panel()
         w0 = w1 = pn.eval('innerWidth')
-    print(json.dumps({'mode': inputs.MODE, 'chrome': find_chrome(), 'ext': EXT, 'window': winput.window_rect(hwnd), 'panelWidth': [w0, w1]}, ensure_ascii=False))
+    print(json.dumps({'mode': inputs.MODE, 'chrome': 'Google Chrome (정식)' if os.environ.get('WC_REAL_CHROME') == '1' else find_chrome(), 'ext': EXT, 'window': winput.window_rect(hwnd), 'panelWidth': [w0, w1]}, ensure_ascii=False))
     return proc
 
 

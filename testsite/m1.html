@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>M1 — 캡처 엔진 케이스</title>
+<style>
+  /* 교차 출처 웹폰트: 페이지 출처(127.0.0.1)에만 CORS 를 허락하는 서버 경로 → 패널(익스텐션 출처)에서 그대로 쓰면 실패 (GitHub 사례) */
+  @font-face { font-family: "PageOnlyFont"; src: url("http://localhost:8765/cors-page-only/spike-display.otf") format("opentype"); }
+  @font-face { font-family: "IconFont"; src: url("fonts/spike-display.otf") format("opentype"); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, sans-serif; background: #f2f3f6; color: #222; }
+  .grid { display: grid; grid-template-columns: repeat(3, 300px); gap: 16px; padding: 16px; }
+  .tile { background: #fff; border-radius: 10px; padding: 12px; min-height: 120px; }
+  .tile h3 { margin: 0 0 8px; font-size: 13px; color: #667; }
+
+  /* G6: Tailwind preflight 처럼 모든 요소에 solid + 0 */
+  #tw, #tw * { border-style: solid; border-width: 0; border-color: #e5e7eb; }
+  #tw .chip { display: inline-block; padding: 2px 8px; border-radius: 9999px; background: #e0e7ff; color: #3730a3; font-size: 12px; }
+  #tw .line { border-bottom-width: 1px; padding: 6px 0; }
+
+  /* G8: 스크롤 컨테이너 */
+  #scroller .inner { height: 80px; overflow: auto; border: 1px solid #ccd; padding: 4px 8px; }
+
+  /* fixed·sticky 자식 */
+  #sticky .wrap { position: relative; height: 90px; overflow: hidden; }
+  #sticky .st { position: sticky; top: 0; background: #ffe08a; padding: 2px 6px; }
+  #sticky .fx { position: fixed; right: 30px; bottom: 30px; background: #ff5a5f; color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 12px; }
+
+  /* R6: hover 박제 */
+  #hover-card { transition: none; }
+  #hover-card:hover { background: #fff1c2; box-shadow: 0 0 0 4px #f5a623; }
+  #hover-card a { color: #3a5bd9; text-decoration: none; }
+  #hover-card a:hover { text-decoration: underline; color: #d00; }
+
+  /* 어두운 배경 위 투명 조각 (조상 배경) */
+  #dark { background: #1b1e2b; color: #e8e8f0; }
+  #dark p { margin: 0; line-height: 1.6; }
+
+  /* 절대 위치 레이아웃: 포함 블록이 끌어오는 목록 바깥 (네이버 블로그 목록 사례) */
+  #abs { position: relative; height: 150px; }
+  #abs-list { margin: 22px 0 0; padding: 0; list-style: none; }
+  #abs-list li { position: absolute; width: 120px; height: 36px; background: #dbeafe; border-radius: 6px; font-size: 12px; padding: 8px; }
+
+  /* 지연 로딩 */
+  #lazy img { width: 100%; height: 90px; object-fit: cover; border-radius: 6px; background: #ddd; }
+
+  /* image-set() + transform + 중첩 flex/grid */
+  #imgset .bg { height: 70px; border-radius: 6px; background-image: image-set(url("img/photo-small.png") 1x, url("img/photo.png") 2x); background-size: cover; }
+  #imgset .rot { display: inline-block; transform: rotate(-6deg); background: #c7f9cc; padding: 4px 8px; margin-top: 8px; }
+  #nest .row { display: flex; gap: 6px; }
+  #nest .row > div { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+  #nest .row > div > span { background: #e9d5ff; height: 18px; border-radius: 3px; }
+
+  /* 교차 출처 웹폰트 + 아이콘 폰트 */
+  #xfont .t { font-family: "PageOnlyFont", monospace; font-size: 24px; color: #3a5bd9; }
+  #xfont .ico::before { content: "★"; font-family: "IconFont"; color: #f5a623; margin-right: 4px; }
+
+  /* R9: 업로드 드롭존 */
+  #dropzone { border: 2px dashed #99a; text-align: center; color: #667; padding: 18px; }
+  #dropzone.got { border-color: #d00; color: #d00; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <section class="tile" id="tw"><h3>Tailwind식 테두리 (G6)</h3><span class="chip">chip</span><div class="line">선 아래 1px</div><div class="line">또 한 줄</div></section>
+  <section class="tile" id="scroller"><h3>스크롤 컨테이너 (G8)</h3><div class="inner">1 줄<br>2 줄<br>3 줄<br>4 줄<br>5 줄<br>6 줄<br>7 줄<br>8 줄</div></section>
+  <section class="tile" id="sticky"><h3>sticky·fixed 자식</h3><div class="wrap"><div class="st">sticky 머리</div><p>본문</p><span class="fx">fixed</span></div></section>
+
+  <section class="tile" id="hover-card"><h3>hover 카드 (R6)</h3><p>마우스를 올리면 배경·테두리가 바뀌는 카드. <a href="#x" id="hover-link">링크</a></p></section>
+  <section class="tile" id="dark"><h3 style="color:#99a">어두운 배경</h3><p id="dark-text">어두운 배경 위의 밝은 글자. 떼어 오면 흰 패널에서 안 보일 수 있다.</p></section>
+  <section class="tile" id="abs"><h3>절대 위치 목록</h3><ul id="abs-list"><li style="left:12px;top:40px">첫째</li><li style="left:150px;top:40px">둘째</li><li style="left:12px;top:90px">셋째</li><li style="left:150px;top:90px">넷째</li></ul></section>
+
+  <section class="tile" id="lazy"><h3>지연 로딩 이미지</h3><img id="lazy-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="img/photo-small.png" alt="lazy"></section>
+  <section class="tile" id="imgset"><h3>image-set · transform</h3><div class="bg"></div><span class="rot">기울어진 배지</span></section>
+  <section class="tile" id="nest"><h3>중첩 flex/grid</h3><div class="row"><div><span></span><span></span><span></span><span></span></div><div><span></span><span></span></div></div></section>
+
+  <section class="tile" id="xfont"><h3>교차 출처 웹폰트 · 아이콘 폰트</h3><div class="t">Cross Font</div><div><span class="ico"></span>아이콘 폰트</div></section>
+  <section class="tile" id="dz-tile"><h3>업로드 드롭존 (R9)</h3><div id="dropzone">여기에 파일을 놓으면 업로드</div><img id="dz-img" src="img/photo-small.png" style="width:120px;margin-top:8px" alt="dz"></section>
+</div>
+<script>
+  // 업로드 드롭존: Files 가 들어오면 표시 (R9 조사용)
+  window.__dz = { over: 0, drops: 0, files: 0, types: [] };
+  const dz = document.getElementById('dropzone');
+  dz.addEventListener('dragover', (e) => { e.preventDefault(); window.__dz.over++; });
+  dz.addEventListener('drop', (e) => { e.preventDefault(); window.__dz.drops++; window.__dz.files += e.dataTransfer.files.length; window.__dz.types = [...e.dataTransfer.types]; dz.classList.add('got'); });
+</script>
+</body>
+</html>

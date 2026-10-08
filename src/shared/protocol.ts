@@ -61,6 +61,12 @@ export interface RawClip {
   crossOriginSheets: string[];
   imageUrls: string[];
   fallbacks: Array<{ n: number; reason: string; rect: Rect; dataUrl?: string }>; // dataUrl 은 background 가 채움
+  /** 교차 출처 iframe: 그 프레임의 content script 에게 받을 스냅샷 번호표 (M1). background 가 html 에 합친다 */
+  frames?: Array<{ n: number; token: string; w: number; h: number; ok?: boolean; error?: string }>;
+  /** 조각이 실제로 차지하는 화면 영역 (absolute 자손 포함). 원본 비교 캡처를 이 영역으로 자른다 */
+  rect?: Rect;
+  /** 루트가 투명할 때 가장 가까운 불투명 조상의 배경 */
+  ancestorBg?: AncestorBg;
   warnings: string[];
   stats: ClipStats;
   meta: DragMeta;
@@ -68,6 +74,13 @@ export interface RawClip {
   refShot?: string; // background 가 채움 (원본 화면 크롭, data URL)
   finalizeError?: string;
 }
+export interface AncestorBg {
+  color?: string;
+  image?: string;
+  repeat?: string;
+  size?: string;
+}
+
 export interface ClipError {
   error: string;
   meta?: DragMeta;
@@ -102,7 +115,22 @@ export type PanelReq =
   | { type: 'scrap:set'; windowId: number; enabled: boolean };
 
 /** background → content (탭의 모든 프레임) */
-export type BgToContent = { type: 'scrap:state'; enabled: boolean };
+export type BgToContent = { type: 'scrap:state'; enabled: boolean } | { type: 'frame:snap'; token: string };
+
+/** frame:snap 응답 — 그 프레임 문서의 스냅샷 (보이는 영역 기준 스크롤 위치 포함) */
+export interface FrameSnap {
+  html: string;
+  css: string;
+  defs: string;
+  scrollX: number;
+  scrollY: number;
+  width: number;
+  families: string[];
+  fontFaces: string[];
+  crossOriginSheets: string[];
+  imageUrls: string[];
+  nodes: number;
+}
 
 /** panel ↔ background Port 이름. 연결 직후 { type:'hello', windowId, enabled } 전달, 20초 ping, 끊기면 재연결 */
 export const PANEL_PORT = 'panel';

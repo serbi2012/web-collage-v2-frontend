@@ -121,16 +121,16 @@ def cursor():
 WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
 
-def windows_of_pid(pid):
+def windows_of_pid(pid, include_hidden=False):
     out = []
 
     def cb(hwnd, _):
         p = wintypes.DWORD()
         user32.GetWindowThreadProcessId(hwnd, ctypes.byref(p))
-        if p.value == pid and user32.IsWindowVisible(hwnd):
+        if p.value == pid and (include_hidden or user32.IsWindowVisible(hwnd)):
             buf = ctypes.create_unicode_buffer(256)
             user32.GetClassNameW(hwnd, buf, 256)
-            if buf.value == 'Chrome_WidgetWin_1':
+            if buf.value == 'Chrome_WidgetWin_1' and user32.GetWindowTextLengthW(hwnd) > 0:
                 out.append(hwnd)
         return True
 

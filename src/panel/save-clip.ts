@@ -110,6 +110,7 @@ export async function saveRawClip(raw: RawClip): Promise<{ clip: Clip; report: L
     assetMap,
     refShotAssetId,
     fallbacks,
+    ancestorBg: raw.ancestorBg ? { ...raw.ancestorBg, image: raw.ancestorBg.image ? mapUrls(raw.ancestorBg.image, assetMap) : undefined } : undefined,
     text: raw.text || tpl.content.textContent?.replace(/\s+/g, ' ').trim().slice(0, 2000) || '',
     stats: { nodes: raw.stats.nodes, htmlBytes: html.length, snapshotMs: raw.stats.snapshotMs },
   };

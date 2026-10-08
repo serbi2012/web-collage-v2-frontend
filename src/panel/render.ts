@@ -14,8 +14,19 @@ export interface Renderable {
   fontFaces: string[];
   fallbackSrc: Record<number, string>;
   refShotSrc?: string;
+  /** 원래 페이지 배경 CSS 선언 (루트가 투명한 조각) */
+  bg?: string;
   /** 저장본인지 (false = 드롭 직후 원본 URL 그대로 쓴 임시 렌더) */
   stored: boolean;
+}
+
+/** 조상 배경 → CSS 선언 (렌더·내보내기 공용) */
+export function bgCss(b: { color?: string; image?: string; repeat?: string; size?: string } | undefined): string | undefined {
+  if (!b || (!b.color && !b.image)) return undefined;
+  let s = '';
+  if (b.color) s += `background-color:${b.color};`;
+  if (b.image) s += `background-image:${b.image};background-repeat:${b.repeat || 'repeat'};background-size:${b.size || 'auto'};`;
+  return s;
 }
 
 // ---------------------------------------------------------------- 에셋 object URL (패널 수명 동안 캐시)
@@ -63,6 +74,7 @@ export function renderableFromRaw(raw: RawClip): Renderable {
     fontFaces: [],
     fallbackSrc,
     refShotSrc: raw.refShot,
+    bg: bgCss(raw.ancestorBg),
     stored: false,
   };
 }
@@ -82,7 +94,8 @@ export async function renderableFromClip(clip: Clip): Promise<Renderable> {
     clip.refShotAssetId ? assetUrl(clip.refShotAssetId) : Promise.resolve(null),
   ]);
   const info = { url: clip.source.url, title: clip.source.title, kind: clip.kind, tag: clip.source.tag || '' };
-  return { info, html, css, defs, width: clip.width, fontFaces, fallbackSrc, refShotSrc: refShotSrc || undefined, stored: true };
+  const bg = clip.ancestorBg ? await resolveAssets(bgCss(clip.ancestorBg) || '') : undefined;
+  return { info, html, css, defs, width: clip.width, fontFaces, fallbackSrc, refShotSrc: refShotSrc || undefined, bg: bg || undefined, stored: true };
 }
 
 export function loadRenderable(clipId: ID): Promise<Renderable | null> {
@@ -121,13 +134,13 @@ const REFLOW_CSS = `.wrap{width:auto!important;max-width:100%}
 .wrap [data-wc-root]{width:auto!important}
 .wrap img,.wrap svg,.wrap video{height:auto!important}`;
 
-export function renderInto(host: HTMLElement, r: Renderable, display: DisplayMode) {
+export function renderInto(host: HTMLElement, r: Renderable, display: DisplayMode, withBg = true) {
   const sr = host.shadowRoot || host.attachShadow({ mode: 'open' });
   sr.textContent = '';
   // 보안: CSS 는 textContent 로 넣어 "</style>" 로 빠져나가는 일을 막는다 (값은 페이지가 만든 것)
   const style = document.createElement('style');
   style.textContent = `:host{all:initial;display:block;overflow:hidden}
-.wrap{width:${r.width ? r.width + 'px' : 'auto'}}
+.wrap{width:${r.width ? r.width + 'px' : 'auto'};${withBg && r.bg ? r.bg : ''}}
 ${display === 'reflow' ? REFLOW_CSS : ''}
 ${r.css || ''}`;
   sr.appendChild(style);

@@ -3,6 +3,7 @@
 import type { BoxNode, Clip, CollageDoc, ID, TreeNode } from '../shared/types';
 import { ASSET_RE } from '../shared/constants';
 import { safeHost } from '../capture/url';
+import { bgCss } from '../panel/render';
 
 export const EXPORT_WIDTH = 920;
 
@@ -44,7 +45,7 @@ export function buildExportHtml(input: ExportInput): string {
   const theme = THEMES[doc.theme] || THEMES.light;
   const fontFaces = new Set<string>();
 
-  const renderBlock = (clip: Clip | undefined, display: string, avail: number): string => {
+  const renderBlock = (clip: Clip | undefined, display: string, avail: number, withBg: boolean): string => {
     if (!clip) return `<figure class="block missing"><div class="ph">조각을 찾을 수 없습니다</div></figure>`;
     for (const f of clip.fontFaces || []) fontFaces.add(replaceAssets(f, assets));
     // 대체 이미지(canvas·iframe·video 화면 캡처) 넣기
@@ -57,7 +58,7 @@ export function buildExportHtml(input: ExportInput): string {
     const w = clip.width;
     const zoom = display === 'fit' && w && w > avail ? avail / w : 1;
     const css = `:host{all:initial;display:block;overflow:${display === 'original' ? 'auto' : 'hidden'}}
-.wrap{width:${w ? w + 'px' : 'auto'};zoom:${zoom.toFixed(4)}}
+.wrap{width:${w ? w + 'px' : 'auto'};zoom:${zoom.toFixed(4)};${withBg ? replaceAssets(bgCss(clip.ancestorBg) || '', assets) : ''}}
 ${display === 'reflow' ? REFLOW_CSS : ''}
 ${replaceAssets(clip.css || '', assets)}`;
     const src = clip.source.url && /^https?:/i.test(clip.source.url) ? clip.source.url : '';
@@ -72,7 +73,7 @@ ${replaceAssets(clip.css || '', assets)}`;
   };
 
   const renderNode = (n: TreeNode, avail: number, depth: number): string => {
-    if (n.kind === 'block') return renderBlock(n.clipId ? clips.get(n.clipId) : undefined, n.display, avail);
+    if (n.kind === 'block') return renderBlock(n.clipId ? clips.get(n.clipId) : undefined, n.display, avail, n.bg !== false);
     return renderBox(n, avail, depth);
   };
   const renderBox = (b: BoxNode, avail: number, depth: number): string => {
