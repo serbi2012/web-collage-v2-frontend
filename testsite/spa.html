@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>SPA — JS로 그리는 페이지</title>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 24px; background: #f4f1ea; }
+  #root:empty::after { content: "로딩 중…"; }
+  .grid { display: grid; grid-template-columns: repeat(2, 300px); gap: 16px; }
+  .tile { background: #fff; border-radius: 12px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  // React 같은 SPA 흉내: HTML 원본에는 #root 만 있고, 내용은 JS가 나중에 그림
+  class SpikeRating extends HTMLElement {
+    constructor() { super(); const r = this.attachShadow({ mode: 'open' });
+      r.innerHTML = `<style>.wrap{display:flex;gap:6px;align-items:center;font:600 14px sans-serif;color:#8a5a00}
+        .stars{color:#f5a623;letter-spacing:2px;font-size:18px}</style>
+        <div class="wrap"><span class="stars">★★★★☆</span><slot></slot></div>`; }
+  }
+  class SpikeClosed extends HTMLElement {
+    constructor() { super(); const r = this.attachShadow({ mode: 'closed' });
+      r.innerHTML = `<style>div{background:#2d2a6e;color:#fff;padding:10px;border-radius:8px;font:13px sans-serif}</style>
+        <div>closed shadow DOM 안의 내용 <b>(숨겨진 트리)</b></div>`; }
+  }
+  customElements.define('spike-rating', SpikeRating);
+  customElements.define('spike-closed', SpikeClosed);
+  setTimeout(() => {
+    document.getElementById('root').innerHTML = `
+      <div class="grid">
+        <section class="tile" id="tile-shadow"><h3>Shadow DOM 컴포넌트</h3>
+          <spike-rating>4.0 (리뷰 128)</spike-rating><br><spike-closed></spike-closed></section>
+        <section class="tile" id="tile-canvas"><h3>캔버스 차트</h3><canvas id="chart" width="260" height="120"></canvas></section>
+        <section class="tile" id="tile-iframe"><h3>다른 출처 iframe</h3>
+          <iframe src="http://localhost:8765/frame.html" width="260" height="110" style="border:1px solid #ccc;border-radius:8px"></iframe></section>
+        <section class="tile" id="tile-form"><h3>입력값</h3>
+          <input id="inp" value="사용자가 입력한 값"><br><label><input type="checkbox" checked> 체크됨</label>
+          <select><option>A</option><option selected>B 선택됨</option></select></section>
+      </div>`;
+    const c = document.getElementById('chart').getContext('2d');
+    const vals = [30, 70, 45, 90, 60, 100, 75];
+    vals.forEach((v, i) => { c.fillStyle = `hsl(${200 + i * 18} 70% 55%)`; c.fillRect(10 + i * 36, 115 - v, 26, v); });
+  }, 400);
+</script>
+</body>
+</html>

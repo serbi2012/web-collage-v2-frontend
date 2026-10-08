@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Hostile — 드래그를 막는 사이트</title>
+<style>
+  * { user-select: none; -webkit-user-select: none; }
+  img { -webkit-user-drag: none; }
+  body { font-family: sans-serif; background: #1b1d24; color: #eee; margin: 0; padding: 30px; }
+  .product { width: 360px; background: #262a35; border-radius: 16px; padding: 16px; }
+  .product img { width: 100%; border-radius: 10px; }
+  .price { font-size: 26px; font-weight: 800; color: #7cf29c; }
+</style>
+<script>
+  // 흔한 "복사·드래그 방지" 스크립트들
+  window.addEventListener('mousedown', e => { e.preventDefault(); }, true);
+  window.addEventListener('pointerdown', e => { e.preventDefault(); }, true);
+  document.addEventListener('dragstart', e => { e.preventDefault(); window.__blockedDragstart = (window.__blockedDragstart||0)+1; }, true);
+  document.addEventListener('selectstart', e => e.preventDefault());
+  document.addEventListener('contextmenu', e => e.preventDefault());
+</script>
+</head>
+<body>
+  <div class="product" id="product" ondragstart="return false">
+    <img id="product-img" src="img/photo-small.png" alt="상품" ondragstart="return false">
+    <h3>복사 방지 쇼핑몰 상품</h3>
+    <div class="price">₩39,900</div>
+  </div>
+</body>
+</html>

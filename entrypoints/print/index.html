@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>Web Collage — 인쇄</title>
+    <style>
+      html, body { margin: 0; height: 100%; font: 13px system-ui, sans-serif; background: #e9e9e7; }
+      .bar { position: sticky; top: 0; display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: #fff; border-bottom: 1px solid #ddd; }
+      .bar button { font: inherit; padding: 4px 12px; border-radius: 6px; border: 1px solid #ccc; background: #f6f6f4; cursor: pointer; }
+      iframe { display: block; width: 100%; height: calc(100% - 45px); border: 0; background: #fff; }
+      @media print { .bar { display: none; } iframe { height: 100%; } }
+    </style>
+  </head>
+  <body>
+    <div class="bar"><b>인쇄 / PDF 저장</b><span id="status">준비 중…</span><button id="print">다시 인쇄</button></div>
+    <iframe id="frame" title="콜라주 미리보기"></iframe>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

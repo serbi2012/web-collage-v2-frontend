@@ -1,20 +1,20 @@
-# dependencies
-/node_modules
+# deps / build
+node_modules/
+.output/
+.output-e2e/
+.wxt/
+dist/
+coverage/
+*.zip
 
-# testing
-/coverage
-
-# production
-/build
+# 테스트 산출물 (브라우저 프로필에 실제 사이트 쿠키가 들어 있음 — 절대 커밋 금지)
+spike/out/
+out/
+e2e/out/
+__pycache__/
+*.pyc
 
 # misc
 .DS_Store
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.history
-
-# secrets
-secrets.*.js
+.env.*
