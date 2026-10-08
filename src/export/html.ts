@@ -1,9 +1,9 @@
 // 단일 HTML 내보내기 (PLAN M3): 에셋 인라인(data URL), 오프라인에서 열림, CSP 메타로 스크립트 금지 (§6.4)
 // 조각은 Declarative Shadow DOM(<template shadowrootmode>)으로 격리해서 패널과 같은 모양을 유지한다.
-import type { BoxNode, Clip, CollageDoc, ID, TreeNode } from '../shared/types';
+import type { BlockNode, BoxNode, Clip, CollageDoc, ID, TreeNode } from '../shared/types';
 import { ASSET_RE } from '../shared/constants';
 import { safeHost } from '../capture/url';
-import { bgCss, READABLE_CSS } from '../panel/render';
+import { bgCss, inkSvgString, READABLE_CSS } from '../panel/render';
 import { LANG, t } from '../shared/i18n';
 
 export const EXPORT_WIDTH = 920;
@@ -46,8 +46,11 @@ export function buildExportHtml(input: ExportInput): string {
   const theme = THEMES[doc.theme] || THEMES.light;
   const fontFaces = new Set<string>();
 
-  const renderBlock = (clip: Clip | undefined, display: string, avail: number, withBg: boolean): string => {
-    if (!clip) return `<figure class="block missing"><div class="ph">조각을 찾을 수 없습니다</div></figure>`;
+  const renderBlock = (clip: Clip | undefined, node: BlockNode, avail: number): string => {
+    const { display } = node;
+    const withBg = node.bg !== false;
+    if (node.type === 'note') return `<figure class="block note"><div class="note">${escHtml(node.note || '')}</div></figure>`;
+    if (!clip) return `<figure class="block missing"><div class="ph">${escHtml(t('missingClip'))}</div></figure>`;
     for (const f of clip.fontFaces || []) fontFaces.add(replaceAssets(f, assets));
     // 대체 이미지(canvas·iframe·video 화면 캡처) 넣기
     const frag = input.parse(clip.html);
@@ -57,9 +60,11 @@ export function buildExportHtml(input: ExportInput): string {
     });
     const html = replaceAssets(input.serialize(frag), assets);
     const w = clip.width;
-    const zoom = display === 'fit' && w && w > avail ? avail / w : 1;
+    const sc = node.scale || 1;
+    const base = display === 'fit' && w && w > avail ? avail / w : 1;
+    const zoom = display === 'fit' ? Math.min(base * sc, w ? avail / w : sc) : sc;
     const css = `:host{all:initial;display:block;overflow:${display === 'original' ? 'auto' : 'hidden'}}
-.wrap{width:${w ? w + 'px' : 'auto'};zoom:${zoom.toFixed(4)};${withBg ? replaceAssets(bgCss(clip.ancestorBg) || '', assets) : ''}}
+.wrap{position:relative;width:${w ? w + 'px' : 'auto'};zoom:${zoom.toFixed(4)};${withBg ? replaceAssets(bgCss(clip.ancestorBg) || '', assets) : ''}}
 ${display === 'reflow' ? REFLOW_CSS : ''}
 ${replaceAssets(clip.css || '', assets)}
 ${doc.readable ? READABLE_CSS : ''}`;
@@ -70,12 +75,12 @@ ${doc.readable ? READABLE_CSS : ''}`;
     return (
       `<figure class="block"><div class="clip"><template shadowrootmode="open"><style>${escCss(css)}</style>` +
       replaceAssets(clip.defs || '', assets) +
-      `<div class="wrap">${html}</div></template></div>${cap}</figure>`
+      `<div class="wrap">${html}${inkSvgString(node.ink)}</div></template></div>${cap}</figure>`
     );
   };
 
   const renderNode = (n: TreeNode, avail: number, depth: number): string => {
-    if (n.kind === 'block') return renderBlock(n.clipId ? clips.get(n.clipId) : undefined, n.display, avail, n.bg !== false);
+    if (n.kind === 'block') return renderBlock(n.clipId ? clips.get(n.clipId) : undefined, n, avail);
     return renderBox(n, avail, depth);
   };
   const renderBox = (b: BoxNode, avail: number, depth: number): string => {
@@ -95,7 +100,7 @@ header h1{font-size:26px;margin:0 0 4px}header p{margin:0 0 24px;color:${theme.m
 .box h2{margin:0 0 8px;font-size:13px;color:${theme.muted};font-weight:600}
 .block{margin:0;border:1px solid ${theme.line};border-radius:8px;overflow:hidden;background:${doc.readable ? theme.panel : '#fff'};break-inside:avoid}
 .block figcaption{font-size:11px;color:#6b6b70;padding:4px 8px;border-top:1px solid #eee;background:#fafafa}
-.block figcaption a{color:inherit}.ph{padding:12px;color:#999}
+.block figcaption a{color:inherit}.ph{padding:12px;color:#999}.block.note{background:#fffbe6}.note{padding:10px 12px;white-space:pre-wrap;color:#1d1d1f}
 @media print{body{background:#fff}main{padding:0}.box{break-inside:auto}}`;
   const created = new Date().toLocaleString(LANG === 'ko' ? 'ko-KR' : 'en-US');
   return `<!doctype html>

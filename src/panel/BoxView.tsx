@@ -6,7 +6,7 @@ import { t } from '../shared/i18n';
 import { usePanel } from './store';
 import { BlockView } from './BlockView';
 import { setMoving } from './dnd';
-import { duplicate, find, insert, makeBox, nudge, remove } from './tree';
+import { duplicate, find, insert, makeBox, makeNote, nudge, remove } from './tree';
 
 export function Children({ box, depth }: { box: BoxNode; depth: number }) {
   return (
@@ -109,6 +109,9 @@ export function BoxView({ node, depth }: { node: BoxNode; depth: number }) {
             {t('addBoxShort')}
           </button>
         )}
+        <button title={t('addNote')} onClick={() => apply((d) => void insert(d.root, node.id, Number.MAX_SAFE_INTEGER, makeNote()))}>
+          {t('addNoteShort')}
+        </button>
         <button title={t('up')} aria-label={t('up')} onClick={() => apply((d) => void nudge(d.root, node.id, -1))}>
           ↑
         </button>
