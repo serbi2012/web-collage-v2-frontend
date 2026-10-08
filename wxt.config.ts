@@ -8,6 +8,14 @@ const E2E = process.env.WXT_E2E === '1';
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   outDir: E2E ? '.output-e2e' : '.output',
+  hooks: {
+    // 충실도 측정 페이지(entrypoints/fidelity)는 E2E 빌드에만 넣는다
+    'entrypoints:resolved': (_wxt, entrypoints) => {
+      if (E2E) return;
+      const i = entrypoints.findIndex((e) => e.name === 'fidelity');
+      if (i >= 0) entrypoints.splice(i, 1);
+    },
+  },
   vite: () => ({
     define: { __E2E__: JSON.stringify(E2E) },
   }),

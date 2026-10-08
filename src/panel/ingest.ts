@@ -174,6 +174,8 @@ export async function handleDrop(dt: DataTransfer, spot: Spot, session: { firstT
   result.finalizeError = rc.finalizeError;
   result.fallbacks = (rc.fallbacks || []).map((f) => ({ reason: f.reason, ok: !!f.dataUrl }));
   result.hasRefShot = !!rc.refShot;
+  result.frames = (rc.frames || []).map((f) => ({ ok: !!f.ok, error: f.error }));
+  result.ancestorBg = rc.ancestorBg;
 
   const sr = () => document.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(block.id)}"] .clip`)?.shadowRoot || null;
   const remoteImgs = Array.from(sr()?.querySelectorAll('img') || []).filter((i) => /^https?:/i.test(i.getAttribute('src') || ''));

@@ -31,9 +31,9 @@ export function BlockView({ node }: { node: BlockNode }) {
   useLayoutEffect(() => {
     const host = hostRef.current;
     if (!r || !host) return;
-    renderInto(host, r, node.display);
+    renderInto(host, r, node.display, node.bg !== false);
     notifyRendered(node.clipId!);
-  }, [r, node.display, node.clipId]);
+  }, [r, node.display, node.clipId, node.bg]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -75,6 +75,20 @@ export function BlockView({ node }: { node: BlockNode }) {
         {r?.refShotSrc && (
           <button className="cmp" title="원본 화면과 비교" aria-pressed={compare} onClick={() => toggleCompare(node.id)}>
             비교
+          </button>
+        )}
+        {r?.bg && (
+          <button
+            title="원래 페이지 배경 깔기"
+            aria-pressed={node.bg !== false}
+            onClick={() =>
+              apply((d) => {
+                const f = find(d.root, node.id);
+                if (f && f.node.kind === 'block') f.node.bg = f.node.bg === false;
+              })
+            }
+          >
+            배경
           </button>
         )}
         <select

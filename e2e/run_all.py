@@ -1,14 +1,15 @@
 """로컬 회귀 테스트 전체 실행 (외부망 불필요, 진짜 OS 마우스). 하나라도 실패하면 종료 코드 1.
 사용: pnpm e2e  (= pnpm build:e2e && python e2e/run_all.py)
       python e2e/run_all.py t_core t_v2   (일부만)
-⚠️ 실행 중에는 실제 마우스 커서가 움직입니다. 테스트 창이 다른 창에 가려지면 해당 케이스가 실패합니다."""
+기본은 CDP 모드(실제 마우스를 움직이지 않음, 창은 화면 밖). WC_INPUT=os 면 실제 커서가 움직이고 테스트 창이 가려지면 실패한다.
+WC_REAL_CHROME=1 이면 정식 Google Chrome(별도 임시 프로필)으로 (D28)."""
 import os, subprocess, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import lab, boot  # noqa: E402
 
-ALL = ['t_core', 't_edge1', 't_edge4', 't_edge6', 't_edge8', 't_edge9', 't_sel_final', 't_handle', 't_v2', 't_persist']
+ALL = ['t_core', 't_edge1', 't_edge4', 't_edge6', 't_edge8', 't_edge9', 't_sel_final', 't_handle', 't_v2', 't_m1', 't_persist']
 
 
 def main():

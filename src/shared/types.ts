@@ -1,4 +1,7 @@
 // 저장 모델 (IndexedDB) — PLAN §7
+import type { AncestorBg } from './protocol';
+
+export type { AncestorBg };
 export type ID = string; // crypto.randomUUID()
 
 export type ThemeId = 'light' | 'dark' | 'sepia';
@@ -32,6 +35,8 @@ export interface BlockNode {
   clipId?: ID;
   note?: string;
   display: DisplayMode;
+  /** 루트가 투명한 조각에 원래 페이지 배경을 깔지 (기본: 깐다 — 원본과 같은 모양) */
+  bg?: boolean;
 }
 
 export type TreeNode = BoxNode | BlockNode;
@@ -51,6 +56,8 @@ export interface Clip {
   assetMap: Record<string, ID>; // 원본 URL → Asset.id
   refShotAssetId?: ID; // 원본 화면 캡처 (비교용)
   fallbacks: Array<{ n: number; reason: string; assetId?: ID }>;
+  /** 루트가 투명할 때 원래 페이지의 배경 (image 의 url 은 wc-asset 으로 치환) */
+  ancestorBg?: AncestorBg;
   text: string; // 검색·미리보기용 평문
   stats: { nodes: number; htmlBytes: number; snapshotMs: number };
 }

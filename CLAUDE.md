@@ -35,6 +35,8 @@
 | G17 | ✅ v2 수정: 헤더 위 드롭은 받지 않음, 긴 패널은 드래그 중 가장자리에서 자동 스크롤 (`src/panel/dnd.ts`) |
 | G18 | ✅ v2 수정: 진행 중 조각 보관소를 IndexedDB(`clipStore`)에 (`src/bg/clip-store.ts`) |
 | G22 | 원본 탭의 dragend 와 패널의 `clip:current` 순서가 뒤집힐 수 있음 → 방금 끝난 드래그도 1.5초간 진행 중으로 |
+| G24 | `<body>`·`<html>` 을 그대로 복제하면 패널 innerHTML 에서 태그째 버려짐 → div 로 |
+| G25 | 자식이 모두 absolute 인 목록은 높이 0 → absolute 자손 범위까지 조각·캡처 영역 확장 |
 
 ## 명령어
 ```bash
@@ -52,7 +54,11 @@ python e2e/run_all.py                  # 전체 (CDP 모드: 실제 마우스를
 python e2e/run_all.py t_core t_v2      # 일부만
 WC_INPUT=os WC_WIN=2600,40 python e2e/run_all.py t_core   # OS 모드: 진짜 마우스(SendInput). 실행 중 커서가 움직임
 python e2e/boot.py                     # 브라우저 + 패널만 띄우기
+WC_REAL_CHROME=1 python e2e/run_all.py # 정식 Google Chrome(별도 임시 프로필, CDP Extensions.loadUnpacked)으로
+python e2e/bench.py                    # 스냅샷 성능 (큰 표·CORE), Long Task 로 페이지 멈춤 측정
+python e2e/profile_snapshot.py         # 스냅샷 CPU 프로파일 (함수별 시간)
 ```
+- 충실도: `t_m1.py` 가 E2E 빌드 전용 `fidelity.html` 로 원본 캡처와 픽셀 비교(기준 2%, `WC_FID_MAX`), 비교 이미지는 `e2e/out/fid_*.png`.
 - **CDP 모드(기본)**: 페이지에 CDP 마우스 입력 → 크롬이 진짜 dragstart → `Input.setInterceptDrags` 로 데이터를 가로채 패널에 진짜 drop. 건너뛰는 것은 OS 가 WebContents 사이로 드래그를 넘겨주는 단계 하나뿐.
 - **OS 모드**: 그 단계까지 확인 (D14). 드래그 UX·플랫폼 동작 변경 시, 마일스톤 끝에 한 번씩. 소유자가 PC 를 쓰는 중이면 먼저 물어볼 것.
 - spike 하네스(`spike/harness`, Linux xdotool)는 참고용으로 그대로 둔다.
@@ -60,7 +66,7 @@ python e2e/boot.py                     # 브라우저 + 패널만 띄우기
 ## 진행 방식
 - `docs/PLAN.md` §10 마일스톤을 **M0부터 순서대로**. 시작 전 §13 "착수 전 결정 사항"을 소유자에게 확인(기본값 제시).
 - 마일스톤마다 브랜치 + PR, 완료 기준(✅) 체크리스트와 테스트 출력 첨부.
-- 결정이 바뀌면 `docs/DECISIONS.md`에 다음 번호(현재 D23부터), 새 함정은 `docs/SPIKE_REPORT.md` §5에 다음 번호(현재 G24부터) 추가.
+- 결정이 바뀌면 `docs/DECISIONS.md`에 다음 번호(현재 D29부터), 새 함정은 `docs/SPIKE_REPORT.md` §5에 다음 번호(현재 G27부터) 추가.
 - `spike/`는 참고용이다. 고치지 말고, v2 코드로 옮길 때 동작과 "왜" 주석을 유지한다.
 
 ## 소유자와 소통
