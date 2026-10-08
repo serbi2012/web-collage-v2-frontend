@@ -12,6 +12,8 @@ export interface CollageDoc {
   id: ID;
   title: string;
   theme: ThemeId;
+  /** M4 가독성 모드: 조각 색·글꼴을 테마로 덮어쓰기 */
+  readable?: boolean;
   root: BoxNode; // 최상위 박스 (세로 방향)
   createdAt: number;
   updatedAt: number;

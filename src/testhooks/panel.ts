@@ -5,12 +5,14 @@ import { makeBox, makeDoc } from '../panel/tree';
 import { exportHtmlString } from '../export/actions';
 import { flushSave, openCollage } from '../panel/persist';
 import { usePanel } from '../panel/store';
+import { setSettings } from '../shared/settings';
 
 export function installPanelTestHooks() {
   const w = window as unknown as Record<string, unknown>;
   w.__wcTest = {
     /** 빈 콜라주(박스 n개)로 시작 — 스크립트마다 앞 테스트가 남긴 블록에 영향받지 않게 */
     async reset(boxes = 2) {
+      await setSettings({ onboarded: true }); // 첫 실행 안내가 배치를 바꾸지 않게
       const doc = makeDoc('E2E', boxes);
       await db.collages.put(doc);
       await openCollage(doc.id);

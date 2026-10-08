@@ -97,3 +97,14 @@ spike 하네스를 Windows 로 옮기면서 입력 방식을 둘로 나눴다 (D
 - 박스 자식 목록은 `.box > .blocks` 의 `[data-node-id]` (블록 `.block` 과 중첩 박스 `.box` 가 섞임). 최상위는 `#board > .root-children`.
 - 패널 초기화는 `window.__wcTest.reset(n)` (E2E 빌드 전용). 그 밖에 `doc()`, `addBoxes(n)`, `exportHtml()`, `flush()`.
 - 테스트 훅 목록에 `data-wc-nomime`(번호표 빼기), `__wcTest` 추가 — 배포 빌드 grep 대상 (`scripts/check-no-testhooks.mjs`).
+
+## 6. M1·M4 케이스 (2026-10-08 추가)
+| ID | 스크립트 | 무엇을 | 합격 기준 |
+|---|---|---|---|
+| M1_* (13개) | `t_m1.py` | `testsite/m1.html`(Tailwind 테두리·스크롤·sticky/fixed·hover·어두운 배경·절대 위치·지연 로딩·image-set·중첩 flex/grid·교차 출처 폰트), `quirks.html`, `spa.html` iframe, CORE 카드 | 케이스별 기대 + **원본 캡처 대비 픽셀 차이 ≤ 2%** (`fidelity.html`, ±1px 허용) |
+| M4a | `t_m4.py` | 라벨 경로에서 article 클릭 → 안쪽으로 움직여도 고정 → 끌기 | `tag=article` |
+| M4b | `t_m4.py` | 가독성 모드 토글 | 조각 Shadow DOM 에 테마 덮어쓰기 CSS |
+| M4c | `t_m4.py` | 첫 실행 안내 표시·닫기 | 닫히고 `settings.onboarded=true` |
+| M4d | `t_m4.py` | 설정 페이지에서 기본 표시 방식 '다시 흐르게' | 새 블록 `display=reflow` |
+
+E2E 전용 추가 훅: `fidelity.html`(배포 빌드에서 엔트리포인트째 빠짐), 패널 `__wcTest.clip(id)`, content `postMessage({__wc:'bench'})`.

@@ -113,3 +113,18 @@ kbd { font: 600 10.5px/1 ui-monospace, monospace; padding: 2px 4px; border: 1px 
 #log .ok { color: var(--ok); }
 #log .warn { color: var(--warn); }
 #log .bad { color: var(--bad); }
+
+/* ---------------------------------------------------------------- M4: 안내·가독성·접근성 */
+.top .busy { color: var(--accent); }
+.top button.toggle.on { border-color: var(--accent); color: var(--accent); }
+.onboarding { margin: 12px 12px 0; padding: 12px 14px; background: var(--panel); border: 1px solid var(--accent); border-radius: 10px; font-size: 12.5px; }
+.onboarding h2 { margin: 0 0 6px; font-size: 13px; }
+.onboarding ol { margin: 0 0 10px; padding-left: 18px; display: grid; gap: 4px; color: var(--ink); }
+.onboarding a { color: var(--accent); }
+button.primary { border: 0; background: var(--accent); color: #fff; border-radius: 6px; padding: 4px 12px; cursor: pointer; font-weight: 600; }
+.blocks:empty::before { content: attr(data-empty); }
+.board.readable .block { background: var(--panel); }
+:where(button, select, a, summary, [tabindex], input):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.switch, .menu summary, .top button, .top select { white-space: nowrap; }
+.top .row { flex-wrap: wrap; row-gap: 4px; }

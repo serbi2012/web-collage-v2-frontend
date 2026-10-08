@@ -9,7 +9,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import lab, boot  # noqa: E402
 
-ALL = ['t_core', 't_edge1', 't_edge4', 't_edge6', 't_edge8', 't_edge9', 't_sel_final', 't_handle', 't_v2', 't_m1', 't_persist']
+ALL = ['t_core', 't_edge1', 't_edge4', 't_edge6', 't_edge8', 't_edge9', 't_sel_final', 't_handle', 't_v2', 't_m1', 't_m4', 't_persist']
 
 
 def main():

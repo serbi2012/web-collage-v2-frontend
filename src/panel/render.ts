@@ -134,7 +134,12 @@ const REFLOW_CSS = `.wrap{width:auto!important;max-width:100%}
 .wrap [data-wc-root]{width:auto!important}
 .wrap img,.wrap svg,.wrap video{height:auto!important}`;
 
-export function renderInto(host: HTMLElement, r: Renderable, display: DisplayMode, withBg = true) {
+/** M4 가독성 모드: 조각의 글자색·배경·글꼴을 패널 테마로 덮어쓴다 (이미지·배치는 그대로). 테마 변수는 :host 를 넘어 상속된다 */
+export const READABLE_CSS = `.wrap{color:var(--ink,#1d1d1f)!important;background:var(--panel,#fff)!important;font-family:var(--read-font,system-ui,sans-serif)!important}
+.wrap *{color:inherit!important;background-color:transparent!important;background-image:none!important;font-family:inherit!important;text-shadow:none!important;border-color:var(--line,#ddd)!important;box-shadow:none!important}
+.wrap a{color:var(--accent,#3a5bd9)!important}`;
+
+export function renderInto(host: HTMLElement, r: Renderable, display: DisplayMode, withBg = true, readable = false) {
   const sr = host.shadowRoot || host.attachShadow({ mode: 'open' });
   sr.textContent = '';
   // 보안: CSS 는 textContent 로 넣어 "</style>" 로 빠져나가는 일을 막는다 (값은 페이지가 만든 것)
@@ -142,7 +147,8 @@ export function renderInto(host: HTMLElement, r: Renderable, display: DisplayMod
   style.textContent = `:host{all:initial;display:block;overflow:hidden}
 .wrap{width:${r.width ? r.width + 'px' : 'auto'};${withBg && r.bg ? r.bg : ''}}
 ${display === 'reflow' ? REFLOW_CSS : ''}
-${r.css || ''}`;
+${r.css || ''}
+${readable ? READABLE_CSS : ''}`;
   sr.appendChild(style);
   if (r.defs) {
     const t = document.createElement('template');

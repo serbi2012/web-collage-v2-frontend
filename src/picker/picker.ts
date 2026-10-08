@@ -5,7 +5,8 @@
 import { DRAG_HTML_MAX, DRAG_TEXT_MAX, WC_MIME, type ContentMsg, type DragMeta, type FrameSnap, type RawClip } from '../shared/protocol';
 import { neutralizeHover } from '../capture/hover';
 import { snapshot } from '../capture/snapshot';
-import { createOverlay, describe, labelTop, type Overlay } from './overlay';
+import { createOverlay, labelTop, paintCrumbs, type Overlay } from './overlay';
+import { TEXT_MODE } from './strings';
 
 interface Armed {
   el: HTMLElement;
@@ -29,6 +30,8 @@ export function startPicker(signal: AbortSignal) {
     armed: null as Armed | null,
     dragging: null as { id: string; root: Element; meta: DragMeta } | null,
     pressed: false, // 버튼 누르고 있는 중
+    locked: null as Element | null, // M4: Alt+휠·경로로 고른 대상은 마우스가 그 안에 있는 동안 고정
+    chain: [] as Element[], // 라벨 경로에 보이는 요소들 (바깥 → 현재)
   };
   const active = () => state.enabled && !state.paused;
   const on = <K extends keyof WindowEventMap>(type: K, fn: (e: WindowEventMap[K]) => void, opts: AddEventListenerOptions = {}) =>
@@ -106,6 +109,18 @@ export function startPicker(signal: AbortSignal) {
     o.label.addEventListener('mousedown', () => {
       state.pressed = true;
     });
+    // M4 라벨 경로: 단계를 누르면 그 요소로 (끌기가 아니라 대상 고르기 — 담기는 여전히 끌어서만)
+    o.label.addEventListener('click', (e) => {
+      const c = (e.composedPath()[0] as Element | undefined)?.closest?.('.c') as HTMLElement | null;
+      const target = c && state.chain[Number(c.dataset.i)];
+      e.preventDefault();
+      e.stopPropagation();
+      if (!target || target === state.hoverEl) return;
+      if (state.hoverEl && target.contains(state.hoverEl)) state.stack.push(state.hoverEl);
+      setHover(target);
+      state.locked = target;
+      paintOverlay();
+    });
     return o;
   }
   function hideOverlay() {
@@ -119,7 +134,11 @@ export function startPicker(signal: AbortSignal) {
     const o = ensureOverlay();
     const r = el.getBoundingClientRect();
     Object.assign(o.box.style, { display: 'block', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
-    o.label.textContent = describe(el) + `  ${Math.round(r.width)}×${Math.round(r.height)}` + (state.alt ? '  (텍스트 선택 모드)' : '');
+    o.box.classList.toggle('locked', state.locked === el);
+    const chain: Element[] = [el];
+    for (let p = parentOf(el); p && !isPageRoot(p) && chain.length < 4; p = parentOf(p)) chain.unshift(p);
+    state.chain = chain;
+    paintCrumbs(o.label, chain, `${Math.round(r.width)}×${Math.round(r.height)}`, state.alt ? TEXT_MODE : '');
     Object.assign(o.label.style, { display: 'block', left: Math.max(0, r.left) + 'px', top: labelTop(r) + 'px' });
   }
 
@@ -191,6 +210,9 @@ export function startPicker(signal: AbortSignal) {
       const t = e.composedPath()[0] as Node | undefined;
       const el = t && t.nodeType === 1 ? (t as Element) : t ? t.parentElement : null;
       if (overlay && el === overlay.host) return; // 손잡이 위: 현재 대상 유지
+      // M4: 고른 대상(Alt+휠·경로) 안에서 움직이는 동안은 안쪽 요소로 바뀌지 않게
+      if (state.locked && el && state.locked.isConnected && (state.locked === el || state.locked.contains(el))) return;
+      state.locked = null;
       if (!el || isPageRoot(el)) return setHover(null);
       state.stack = [];
       setHover(pickTarget(el));
@@ -211,11 +233,16 @@ export function startPicker(signal: AbortSignal) {
         const keepAlt = state.alt;
         state.alt = false;
         setHover(p);
+        state.locked = p;
         state.alt = keepAlt;
         if (keepAlt) disarm();
+        paintOverlay();
       }
     } else if (state.stack.length) {
-      setHover(state.stack.pop()!);
+      const back = state.stack.pop()!;
+      setHover(back);
+      state.locked = state.stack.length ? back : null;
+      paintOverlay();
     }
   }
   let wheelOn = false;

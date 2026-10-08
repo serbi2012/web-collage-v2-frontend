@@ -23,3 +23,17 @@ describe('메시지 타입 가드 (크기·형식이 이상한 메시지는 버�
     expect(isPanelReq({ type: 'scrap:set', windowId: 1, enabled: true })).toBe(true);
   });
 });
+
+describe('설정·다국어', async () => {
+  const { normalizeServer } = await import('../src/shared/settings');
+  const { t } = await import('../src/shared/i18n');
+  it('공유 서버 주소 정리', () => {
+    expect(normalizeServer(' https://share.test/ ')).toBe('https://share.test');
+    expect(normalizeServer('')).toBe('');
+    expect(normalizeServer('javascript:alert(1)')).toBeNull();
+    expect(normalizeServer('ftp://x')).toBeNull();
+  });
+  it('문구 치환', () => {
+    expect(t('failed', 'A', 'B')).toMatch(/A.*B/);
+  });
+});
